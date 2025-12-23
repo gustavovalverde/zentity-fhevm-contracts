@@ -60,7 +60,7 @@
         "type": "address"
       },
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "bool",
         "name": "allowed",
         "type": "bool"

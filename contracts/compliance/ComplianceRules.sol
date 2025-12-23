@@ -58,7 +58,7 @@ contract ComplianceRules is ZamaEthereumConfig {
     /// @notice Emitted when a caller's authorization is updated
     /// @param caller Address being authorized or revoked
     /// @param allowed Whether the caller is allowed
-    event AuthorizedCallerUpdated(address indexed caller, bool allowed);
+    event AuthorizedCallerUpdated(address indexed caller, bool indexed allowed);
 
     /// @notice Emitted when ownership transfer is initiated
     /// @param currentOwner Current owner address
