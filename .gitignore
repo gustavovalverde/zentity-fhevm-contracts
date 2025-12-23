@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+cache/
+artifacts/
+typechain-types/
+fhevmTemp/
+
+# Environment
+.env
+.env.local
+.claude/settings.json
+
+# IDE (keep .vscode configs in repo)
+.idea/
+*.swp
+
+# OS
+.DS_Store
+
+# Hardhat
+coverage/
+coverage.json
+
+# Deployments (keep JSONs for published SDK, ignore solcInputs)
+deployments/**/solcInputs/
+
+# Husky internal
+.husky/_
+
+# Bun
+bun.lockb

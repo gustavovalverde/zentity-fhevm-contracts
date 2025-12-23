@@ -1,0 +1,4 @@
+{
+  "recommendations": ["biomejs.biome", "JuanBlanco.solidity", "tintinweb.solidity-visual-auditor"],
+  "unwantedRecommendations": ["esbenp.prettier-vscode", "dbaeumer.vscode-eslint"]
+}
