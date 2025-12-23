@@ -1,6 +1,6 @@
 {
   "name": "@zentity/fhevm-contracts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "fhEVM smart contracts for Zentity privacy-preserving identity attestations",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -63,7 +63,7 @@
     "@openzeppelin/confidential-contracts": "0.3.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.9",
+    "@biomejs/biome": "^2.3.10",
     "@changesets/cli": "^2.29.8",
     "@commitlint/cli": "^20.2.0",
     "@commitlint/config-conventional": "^20.2.0",
@@ -71,20 +71,20 @@
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
     "@openzeppelin/contracts": "^5.4.0",
-    "@types/node": "^22.0.0",
+    "@types/node": "^22.19.3",
     "chai": "^4.5.0",
     "dotenv": "^17.2.3",
     "hardhat": "^2.28.0",
     "hardhat-deploy": "^1.0.4",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
-    "solhint": "^6.0.1",
+    "solhint": "^6.0.2",
     "solidity-docgen": "^0.6.0-beta.36",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "ethers": "^6.0.0",
-    "viem": "^2.0.0"
+    "ethers": "^6.16.0",
+    "viem": "^2.43.1"
   },
   "engines": {
     "node": ">=22.0.0 <25.0.0",
