@@ -8,9 +8,6 @@ import complianceRulesAbi from "../abi/ComplianceRules.json";
 import compliantErc20Abi from "../abi/CompliantERC20.json";
 import identityRegistryAbi from "../abi/IdentityRegistry.json";
 import hardhatAddressesJson from "../deployments/hardhat/addresses.json";
-import localhostComplianceRules from "../deployments/localhost/ComplianceRules.json";
-import localhostCompliantERC20 from "../deployments/localhost/CompliantERC20.json";
-import localhostIdentityRegistry from "../deployments/localhost/IdentityRegistry.json";
 
 export const CONTRACT_NAMES = ["IdentityRegistry", "ComplianceRules", "CompliantERC20"] as const;
 
@@ -61,21 +58,6 @@ export const DEPLOYMENTS: Partial<Record<NetworkName, DeploymentManifest>> = {
       CompliantERC20: hardhatAddresses.contracts.CompliantERC20,
     },
   },
-  localhost: {
-    network: "localhost",
-    chainId: CHAIN_ID_BY_NETWORK.localhost,
-    contracts: {
-      IdentityRegistry: {
-        address: localhostIdentityRegistry.address,
-      },
-      ComplianceRules: {
-        address: localhostComplianceRules.address,
-      },
-      CompliantERC20: {
-        address: localhostCompliantERC20.address,
-      },
-    },
-  },
 };
 
 export const ADDRESSES = {
@@ -83,11 +65,6 @@ export const ADDRESSES = {
     IdentityRegistry: hardhatAddresses.contracts.IdentityRegistry.address,
     ComplianceRules: hardhatAddresses.contracts.ComplianceRules.address,
     CompliantERC20: hardhatAddresses.contracts.CompliantERC20.address,
-  },
-  localhost: {
-    IdentityRegistry: localhostIdentityRegistry.address,
-    ComplianceRules: localhostComplianceRules.address,
-    CompliantERC20: localhostCompliantERC20.address,
   },
 } as const satisfies Record<string, ContractAddresses>;
 
