@@ -26,6 +26,7 @@ coverage.json
 
 # Deployments (keep JSONs for published SDK, ignore solcInputs)
 deployments/**/solcInputs/
+deployments/localhost/
 
 # Husky internal
 .husky/_
