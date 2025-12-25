@@ -1,6 +1,6 @@
 {
   "name": "@zentity/fhevm-contracts",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "fhEVM smart contracts for Zentity privacy-preserving identity attestations",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -67,7 +67,7 @@
     "@changesets/cli": "^2.29.8",
     "@commitlint/cli": "^20.2.0",
     "@commitlint/config-conventional": "^20.2.0",
-    "@fhevm/hardhat-plugin": "^0.3.0-3",
+    "@fhevm/hardhat-plugin": "^0.3.0-4",
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
     "@openzeppelin/contracts": "^5.4.0",
