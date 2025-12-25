@@ -53,7 +53,7 @@
     "print:deployments": "bun scripts/print-deployments.ts",
     "build": "bun run compile && bun run typechain && bun run export-abi && tsc -p tsconfig.build.json",
     "prepublishOnly": "bun run build",
-    "ci:version": "changeset version && bun update",
+    "ci:version": "changeset version",
     "ci:publish": "changeset publish",
     "clean": "hardhat clean && rm -rf dist typechain-types abi/*.json",
     "prepare": "husky"
@@ -67,7 +67,7 @@
     "@changesets/cli": "^2.29.8",
     "@commitlint/cli": "^20.2.0",
     "@commitlint/config-conventional": "^20.2.0",
-    "@fhevm/hardhat-plugin": "^0.3.0-4",
+    "@fhevm/hardhat-plugin": "0.3.0-3",
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
     "@openzeppelin/contracts": "^5.4.0",

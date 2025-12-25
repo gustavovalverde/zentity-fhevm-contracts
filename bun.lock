@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "@zentity/fhevm-contracts",
@@ -12,7 +13,7 @@
         "@changesets/cli": "^2.29.8",
         "@commitlint/cli": "^20.2.0",
         "@commitlint/config-conventional": "^20.2.0",
-        "@fhevm/hardhat-plugin": "^0.3.0-3",
+        "@fhevm/hardhat-plugin": "0.3.0-3",
         "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
         "@nomicfoundation/hardhat-toolbox": "^6.1.0",
         "@openzeppelin/contracts": "^5.4.0",
@@ -198,9 +199,9 @@
 
     "@fastify/busboy": ["@fastify/busboy@2.1.1", "", {}, "sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA=="],
 
-    "@fhevm/hardhat-plugin": ["@fhevm/hardhat-plugin@0.3.0-4", "", { "dependencies": { "@fhevm/host-contracts": "0.10.0", "debug": "^4.1.1", "dotenv": "^16.5.0", "picocolors": "^1.1.1", "resolve": "^1.22.10" }, "peerDependencies": { "@fhevm/mock-utils": "0.3.0-4", "@fhevm/solidity": "^0.10.0", "@nomicfoundation/hardhat-ethers": "^3.0.8", "@zama-fhe/relayer-sdk": "^0.3.0-8", "encrypted-types": "^0.0.4", "ethers": "^6.1.0", "hardhat": "^2.0.0" } }, "sha512-TaEaix6k2CgRIV9beeKxgRM368JEEWkRi9GJC7Wl4dcH/KLOFS19/j5+0L/6U2m3zmGMXwQUj2vwGCEufMrikg=="],
+    "@fhevm/hardhat-plugin": ["@fhevm/hardhat-plugin@0.3.0-3", "", { "dependencies": { "@fhevm/host-contracts": "0.9.0", "debug": "^4.1.1", "dotenv": "^16.5.0", "picocolors": "^1.1.1", "resolve": "^1.22.10" }, "peerDependencies": { "@fhevm/mock-utils": "0.3.0-3", "@fhevm/solidity": "^0.9.1", "@nomicfoundation/hardhat-ethers": "^3.0.8", "@zama-fhe/relayer-sdk": "^0.3.0-6", "encrypted-types": "^0.0.4", "ethers": "^6.1.0", "hardhat": "^2.0.0" } }, "sha512-cgt4dERVnWzfbJbgK+DZIlL9P8QeVl4/d6XHcCMXo3qsNZZSAHj5KFFOuVfd7crCZ0CK1rMfHwBSYy88RGBR2Q=="],
 
-    "@fhevm/host-contracts": ["@fhevm/host-contracts@0.10.0", "", { "dependencies": { "encrypted-types": "^0.0.4" }, "optionalDependencies": { "solidity-comments-darwin-arm64": "0.1.1", "solidity-comments-linux-x64-gnu": "0.1.1" } }, "sha512-lpJi5ktriK55tn5UGmIbOLtQwni2mkVITHqsy4opP+nexinLU/9NCzQi/TQllANpd7Q3f4y5Ukg3JbC942FcRA=="],
+    "@fhevm/host-contracts": ["@fhevm/host-contracts@0.9.0", "", { "dependencies": { "encrypted-types": "^0.0.4" }, "optionalDependencies": { "solidity-comments-darwin-arm64": "0.1.1", "solidity-comments-linux-x64-gnu": "0.1.1" } }, "sha512-N/DRfpXVCzHbg+9NE5sLHzTH3X7Wt3xRSN/7Jyoo+mKgjI7u40heJz8z/dUqvcq0h8wXjXcZcQHgP4pjMNjLKw=="],
 
     "@fhevm/mock-utils": ["@fhevm/mock-utils@0.3.0-3", "", { "peerDependencies": { "@zama-fhe/relayer-sdk": "^0.3.0-6", "ethers": "^6.1.0", "typescript": ">=5.0.4" }, "optionalPeers": ["typescript"] }, "sha512-JJmAVGsfJu0Y8VMDnTcyhovgY5+IJZ2ar143xrtzxl70BF8rt68gwBQ0wYgC4aFGLwq3whiELbB2HdCLLDgeng=="],
 
