@@ -1,5 +1,11 @@
 # @zentity/fhevm-contracts
 
+## 0.2.0
+
+### Minor Changes
+
+- 2c56b66: Rename KYC level fields and functions to compliance level across contracts, ABIs, and docs.
+
 ## 0.1.2
 
 ### Patch Changes
