@@ -108,14 +108,14 @@ interface IIdentityRegistry {
     /// @param user Address of the user being attested
     /// @param encBirthYearOffset Encrypted birth year offset (years since 1900)
     /// @param encCountryCode Encrypted ISO 3166-1 numeric country code
-    /// @param encKycLevel Encrypted KYC verification level (0-3)
+    /// @param encComplianceLevel Encrypted compliance verification level (0-3)
     /// @param encIsBlacklisted Encrypted blacklist status
     /// @param inputProof FHE proof for encrypted inputs
     function attestIdentity(
         address user,
         externalEuint8 encBirthYearOffset,
         externalEuint16 encCountryCode,
-        externalEuint8 encKycLevel,
+        externalEuint8 encComplianceLevel,
         externalEbool encIsBlacklisted,
         bytes calldata inputProof
     ) external;
@@ -136,10 +136,10 @@ interface IIdentityRegistry {
     /// @return Encrypted ISO 3166-1 numeric country code
     function getCountryCode(address user) external view returns (euint16);
 
-    /// @notice Get user's encrypted KYC level
+    /// @notice Get user's encrypted compliance level
     /// @param user Address of the user
-    /// @return Encrypted KYC verification level (0-3)
-    function getKycLevel(address user) external view returns (euint8);
+    /// @return Encrypted compliance (KYC) verification level (0-3)
+    function getComplianceLevel(address user) external view returns (euint8);
 
     /// @notice Get user's encrypted blacklist status
     /// @param user Address of the user
@@ -148,11 +148,11 @@ interface IIdentityRegistry {
 
     // ============ Verification Helpers ============
 
-    /// @notice Check if user has minimum KYC level (encrypted comparison)
+    /// @notice Check if user has minimum compliance level (encrypted comparison)
     /// @param user Address of the user
-    /// @param minLevel Minimum KYC level required
+    /// @param minLevel Minimum compliance level required
     /// @return Encrypted boolean result of comparison
-    function hasMinKycLevel(address user, uint8 minLevel) external returns (ebool);
+    function hasMinComplianceLevel(address user, uint8 minLevel) external returns (ebool);
 
     /// @notice Check if user is from a specific country (encrypted comparison)
     /// @param user Address of the user

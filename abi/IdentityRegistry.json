@@ -260,7 +260,7 @@
       },
       {
         "internalType": "externalEuint8",
-        "name": "encKycLevel",
+        "name": "encComplianceLevel",
         "type": "bytes32"
       },
       {
@@ -429,6 +429,49 @@
         "type": "address"
       }
     ],
+    "name": "getComplianceLevel",
+    "outputs": [
+      {
+        "internalType": "euint8",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "uint8",
+        "name": "minLevel",
+        "type": "uint8"
+      }
+    ],
+    "name": "getComplianceLevelResult",
+    "outputs": [
+      {
+        "internalType": "ebool",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
     "name": "getCountryCode",
     "outputs": [
       {
@@ -468,49 +511,6 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "user",
-        "type": "address"
-      }
-    ],
-    "name": "getKycLevel",
-    "outputs": [
-      {
-        "internalType": "euint8",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      },
-      {
-        "internalType": "uint8",
-        "name": "minLevel",
-        "type": "uint8"
-      }
-    ],
-    "name": "getKycLevelResult",
-    "outputs": [
-      {
-        "internalType": "ebool",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
         "name": "grantee",
         "type": "address"
       }
@@ -533,7 +533,7 @@
         "type": "uint8"
       }
     ],
-    "name": "hasMinKycLevel",
+    "name": "hasMinComplianceLevel",
     "outputs": [
       {
         "internalType": "ebool",

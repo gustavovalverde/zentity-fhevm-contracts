@@ -33,7 +33,7 @@ describe("Full Integration Flow", () => {
 
   async function deployComplianceRules(registryAddr: string) {
     const factory = await hre.ethers.getContractFactory("ComplianceRules");
-    const contract = await factory.deploy(registryAddr, 1); // minKycLevel = 1
+    const contract = await factory.deploy(registryAddr, 1); // minComplianceLevel = 1
     await contract.waitForDeployment();
     return contract;
   }
@@ -49,14 +49,14 @@ describe("Full Integration Flow", () => {
     userAddress: string,
     birthYearOffset: number,
     countryCode: number,
-    kycLevel: number,
+    complianceLevel: number,
     isBlacklisted: boolean,
     signer: HardhatEthersSigner,
   ) {
     const encrypted = hre.fhevm.createEncryptedInput(registryAddress, signer.address);
     encrypted.add8(birthYearOffset);
     encrypted.add16(countryCode);
-    encrypted.add8(kycLevel);
+    encrypted.add8(complianceLevel);
     encrypted.addBool(isBlacklisted);
     const encryptedInput = await encrypted.encrypt();
 
@@ -120,19 +120,19 @@ describe("Full Integration Flow", () => {
 
   describe("User Attestation", () => {
     it("should attest Alice (compliant user)", async () => {
-      // Alice: KYC level 3, not blacklisted
+      // Alice: compliance level 3, not blacklisted
       await attestUser(alice.address, 90, 840, 3, false, registrar);
       expect(await identityRegistry.isAttested(alice.address)).to.be.true;
     });
 
     it("should attest Bob (compliant user)", async () => {
-      // Bob: KYC level 2, not blacklisted
+      // Bob: compliance level 2, not blacklisted
       await attestUser(bob.address, 95, 276, 2, false, registrar);
       expect(await identityRegistry.isAttested(bob.address)).to.be.true;
     });
 
     it("should attest Charlie (blacklisted user)", async () => {
-      // Charlie: KYC level 1, but blacklisted
+      // Charlie: compliance level 1, but blacklisted
       await attestUser(charlie.address, 85, 840, 1, true, registrar);
       expect(await identityRegistry.isAttested(charlie.address)).to.be.true;
     });
@@ -307,9 +307,9 @@ describe("Full Integration Flow", () => {
   });
 
   describe("Compliance Changes", () => {
-    it("should update min KYC level and affect compliance", async () => {
-      // Increase min KYC level to 3 (Bob has level 2)
-      await complianceRules.connect(owner).setMinKycLevel(3);
+    it("should update min compliance level and affect compliance", async () => {
+      // Increase min compliance level to 3 (Bob has level 2)
+      await complianceRules.connect(owner).setMinComplianceLevel(3);
 
       // Bob should now fail compliance
       await complianceRules.connect(bob).checkCompliance(bob.address);
@@ -320,7 +320,7 @@ describe("Full Integration Flow", () => {
       expect(isCompliant).to.be.false;
 
       // Reset for other tests
-      await complianceRules.connect(owner).setMinKycLevel(1);
+      await complianceRules.connect(owner).setMinComplianceLevel(1);
     });
   });
 });

@@ -11,7 +11,7 @@ sequenceDiagram
     actor User
     participant UI as Zentity Web App (Web2)
     participant BE as Zentity Backend (Web2)
-    participant KYC as KYC/Liveness Services (Web2)
+    participant Verifier as KYC/Liveness Services (Web2)
     participant Registrar as Registrar Wallet (Web3)
     participant IR as IdentityRegistry (fhEVM)
     participant CR as ComplianceRules (fhEVM)
@@ -19,8 +19,8 @@ sequenceDiagram
 
     User->>UI: Complete verification flow (docs + liveness)
     UI->>BE: Submit verification data
-    BE->>KYC: Verify identity and liveness
-    KYC-->>BE: KYC result + attributes
+    BE->>Verifier: Verify identity and liveness
+    Verifier-->>BE: Compliance result + attributes
 
     BE->>UI: Verification complete (Web2)
     UI->>Registrar: Request on-chain attestation
@@ -44,7 +44,7 @@ sequenceDiagram
 
 ### Web2 (Zentity Backend)
 - **Collects and verifies identity data** (documents, liveness, etc.).
-- **Produces the final KYC result** and attribute set.
+- **Produces the final compliance result** and attribute set.
 - **Never stores plaintext on-chain**. Only encrypted attributes are sent to
   Web3 via the registrar flow.
 

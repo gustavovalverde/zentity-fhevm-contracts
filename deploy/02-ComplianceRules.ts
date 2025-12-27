@@ -6,16 +6,16 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deploy, get } = hre.deployments;
 
   const registry = await get("IdentityRegistry");
-  const minKycLevel = 1;
+  const minComplianceLevel = 1;
 
   await deploy("ComplianceRules", {
     from: deployer,
-    args: [registry.address, minKycLevel],
+    args: [registry.address, minComplianceLevel],
     log: true,
   });
 
   console.log(`  Registry: ${registry.address}`);
-  console.log(`  Min KYC Level: ${minKycLevel}`);
+  console.log(`  Min Compliance Level: ${minComplianceLevel}`);
 };
 
 export default func;

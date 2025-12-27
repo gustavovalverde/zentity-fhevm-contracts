@@ -29,7 +29,7 @@ describe("User Decrypt Flow (E2E)", () => {
     const encrypted = hre.fhevm.createEncryptedInput(registryAddress, registrar.address);
     encrypted.add8(90); // birthYearOffset
     encrypted.add16(840); // countryCode
-    encrypted.add8(3); // kycLevel
+    encrypted.add8(3); // complianceLevel
     encrypted.addBool(false); // isBlacklisted
     const encryptedInput = await encrypted.encrypt();
 
@@ -50,9 +50,9 @@ describe("User Decrypt Flow (E2E)", () => {
     const countryHandle = (await identityRegistry
       .connect(alice)
       .getCountryCode(alice.address)) as `0x${string}`;
-    const kycHandle = (await identityRegistry
+    const complianceHandle = (await identityRegistry
       .connect(alice)
-      .getKycLevel(alice.address)) as `0x${string}`;
+      .getComplianceLevel(alice.address)) as `0x${string}`;
     const blacklistHandle = (await identityRegistry
       .connect(alice)
       .getBlacklistStatus(alice.address)) as `0x${string}`;
@@ -64,7 +64,7 @@ describe("User Decrypt Flow (E2E)", () => {
       [
         { handleBytes32: birthYearHandle, contractAddress: registryAddress },
         { handleBytes32: countryHandle, contractAddress: registryAddress },
-        { handleBytes32: kycHandle, contractAddress: registryAddress },
+        { handleBytes32: complianceHandle, contractAddress: registryAddress },
         { handleBytes32: blacklistHandle, contractAddress: registryAddress },
       ],
       alice,
@@ -72,7 +72,7 @@ describe("User Decrypt Flow (E2E)", () => {
 
     expect(decrypted[birthYearHandle]).to.equal(90n);
     expect(decrypted[countryHandle]).to.equal(840n);
-    expect(decrypted[kycHandle]).to.equal(3n);
+    expect(decrypted[complianceHandle]).to.equal(3n);
     expect(decrypted[blacklistHandle]).to.equal(false);
   });
 });

@@ -9,7 +9,7 @@ import {IIdentityRegistry} from "../interfaces/IIdentityRegistry.sol";
 /**
  * @title IdentityRegistry
  * @author Gustavo Valverde
- * @notice On-chain encrypted identity registry for KYC or compliance platforms
+ * @notice On-chain encrypted identity registry for compliance platforms
  * @dev Part of zentity-fhevm-contracts - Builder Track
  *
  * @custom:category identity
@@ -35,8 +35,8 @@ contract IdentityRegistry is IIdentityRegistry, ZamaEthereumConfig {
     /// @notice Encrypted country code (ISO 3166-1 numeric)
     mapping(address user => euint16 countryCode) private countryCodes;
 
-    /// @notice Encrypted KYC verification level (0-5)
-    mapping(address user => euint8 kycLevel) private kycLevels;
+    /// @notice Encrypted compliance verification level (0-5)
+    mapping(address user => euint8 complianceLevel) private complianceLevels;
 
     /// @notice Encrypted blacklist status
     mapping(address user => ebool blacklisted) private isBlacklisted;
@@ -118,7 +118,7 @@ contract IdentityRegistry is IIdentityRegistry, ZamaEthereumConfig {
         address user,
         externalEuint8 encBirthYearOffset,
         externalEuint16 encCountryCode,
-        externalEuint8 encKycLevel,
+        externalEuint8 encComplianceLevel,
         externalEbool encIsBlacklisted,
         bytes calldata inputProof
     ) external onlyRegistrar {
@@ -127,24 +127,24 @@ contract IdentityRegistry is IIdentityRegistry, ZamaEthereumConfig {
         // Convert and store encrypted values
         euint8 birthYear = FHE.fromExternal(encBirthYearOffset, inputProof);
         euint16 country = FHE.fromExternal(encCountryCode, inputProof);
-        euint8 kyc = FHE.fromExternal(encKycLevel, inputProof);
+        euint8 compliance = FHE.fromExternal(encComplianceLevel, inputProof);
         ebool blacklisted = FHE.fromExternal(encIsBlacklisted, inputProof);
 
         birthYearOffsets[user] = birthYear;
         countryCodes[user] = country;
-        kycLevels[user] = kyc;
+        complianceLevels[user] = compliance;
         isBlacklisted[user] = blacklisted;
 
         // Grant contract permission to all values
         FHE.allowThis(birthYear);
         FHE.allowThis(country);
-        FHE.allowThis(kyc);
+        FHE.allowThis(compliance);
         FHE.allowThis(blacklisted);
 
         // Grant user permission to their own data
         FHE.allow(birthYear, user);
         FHE.allow(country, user);
-        FHE.allow(kyc, user);
+        FHE.allow(compliance, user);
         FHE.allow(blacklisted, user);
 
         uint256 newAttestationId = latestAttestationId[user] + 1;
@@ -169,7 +169,7 @@ contract IdentityRegistry is IIdentityRegistry, ZamaEthereumConfig {
         // Set encrypted values to encrypted zeros
         birthYearOffsets[user] = FHE.asEuint8(0);
         countryCodes[user] = FHE.asEuint16(0);
-        kycLevels[user] = FHE.asEuint8(0);
+        complianceLevels[user] = FHE.asEuint8(0);
         isBlacklisted[user] = FHE.asEbool(false);
         attestationTimestamp[user] = 0;
         currentAttestationId[user] = 0;
@@ -200,10 +200,10 @@ contract IdentityRegistry is IIdentityRegistry, ZamaEthereumConfig {
     }
 
     /// @inheritdoc IIdentityRegistry
-    function getKycLevel(address user) external view returns (euint8) {
+    function getComplianceLevel(address user) external view returns (euint8) {
         if (attestationTimestamp[user] == 0) revert NotAttested();
-        if (!FHE.isSenderAllowed(kycLevels[user])) revert AccessProhibited();
-        return kycLevels[user];
+        if (!FHE.isSenderAllowed(complianceLevels[user])) revert AccessProhibited();
+        return complianceLevels[user];
     }
 
     /// @inheritdoc IIdentityRegistry
@@ -216,10 +216,10 @@ contract IdentityRegistry is IIdentityRegistry, ZamaEthereumConfig {
     // ============ Verification Helpers ============
 
     /// @inheritdoc IIdentityRegistry
-    function hasMinKycLevel(address user, uint8 minLevel) external returns (ebool) {
+    function hasMinComplianceLevel(address user, uint8 minLevel) external returns (ebool) {
         if (attestationTimestamp[user] == 0) revert NotAttested();
-        if (!FHE.isSenderAllowed(kycLevels[user])) revert AccessProhibited();
-        ebool result = FHE.ge(kycLevels[user], FHE.asEuint8(minLevel));
+        if (!FHE.isSenderAllowed(complianceLevels[user])) revert AccessProhibited();
+        ebool result = FHE.ge(complianceLevels[user], FHE.asEuint8(minLevel));
 
         // Store result for later retrieval
         bytes32 key = keccak256(abi.encodePacked(user, uint8(0), uint256(minLevel)));
@@ -269,12 +269,12 @@ contract IdentityRegistry is IIdentityRegistry, ZamaEthereumConfig {
     // ============ Result Getters ============
 
     /**
-     * @notice Get the last KYC level verification result
+     * @notice Get the last compliance level verification result
      * @param user Address that was checked
      * @param minLevel Level that was checked
      * @return Encrypted boolean result
      */
-    function getKycLevelResult(address user, uint8 minLevel) external view returns (ebool) {
+    function getComplianceLevelResult(address user, uint8 minLevel) external view returns (ebool) {
         bytes32 key = keccak256(abi.encodePacked(user, uint8(0), uint256(minLevel)));
         ebool result = verificationResults[key];
         if (!FHE.isSenderAllowed(result)) revert AccessProhibited();
@@ -330,7 +330,7 @@ contract IdentityRegistry is IIdentityRegistry, ZamaEthereumConfig {
 
         FHE.allow(birthYearOffsets[msg.sender], grantee);
         FHE.allow(countryCodes[msg.sender], grantee);
-        FHE.allow(kycLevels[msg.sender], grantee);
+        FHE.allow(complianceLevels[msg.sender], grantee);
         FHE.allow(isBlacklisted[msg.sender], grantee);
 
         emit AccessGranted(msg.sender, grantee);

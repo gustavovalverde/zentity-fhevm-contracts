@@ -29,14 +29,14 @@ describe("IdentityRegistry", () => {
     userAddress: string,
     birthYearOffset: number,
     countryCode: number,
-    kycLevel: number,
+    complianceLevel: number,
     isBlacklisted: boolean,
     signer: HardhatEthersSigner,
   ) {
     const encrypted = hre.fhevm.createEncryptedInput(contractAddress, signer.address);
     encrypted.add8(birthYearOffset);
     encrypted.add16(countryCode);
-    encrypted.add8(kycLevel);
+    encrypted.add8(complianceLevel);
     encrypted.addBool(isBlacklisted);
     const encryptedInput = await encrypted.encrypt();
 
@@ -98,7 +98,7 @@ describe("IdentityRegistry", () => {
 
   describe("Identity Attestation", () => {
     it("should allow registrar to attest identity", async () => {
-      // Birth year 1990 (offset 90), USA (840), KYC level 3, not blacklisted
+      // Birth year 1990 (offset 90), USA (840), compliance level 3, not blacklisted
       await attestUser(user1.address, 90, 840, 3, false, registrar);
 
       expect(await registry.isAttested(user1.address)).to.be.true;
@@ -187,17 +187,17 @@ describe("IdentityRegistry", () => {
   });
 
   describe("Encrypted Data Retrieval", () => {
-    it("should allow user to read their own KYC level", async () => {
-      const encryptedKyc = await registry.connect(user1).getKycLevel(user1.address);
+    it("should allow user to read their own compliance level", async () => {
+      const encryptedCompliance = await registry.connect(user1).getComplianceLevel(user1.address);
 
-      const kycLevel = await hre.fhevm.userDecryptEuint(
+      const complianceLevel = await hre.fhevm.userDecryptEuint(
         FhevmType.euint8,
-        encryptedKyc,
+        encryptedCompliance,
         contractAddress,
         user1,
       );
 
-      expect(kycLevel).to.equal(3n);
+      expect(complianceLevel).to.equal(3n);
     });
 
     it("should allow user to read their own blacklist status", async () => {
@@ -222,32 +222,36 @@ describe("IdentityRegistry", () => {
   });
 
   describe("Verification Helpers", () => {
-    it("should check minimum KYC level correctly", async () => {
-      await registry.connect(user1).hasMinKycLevel(user1.address, 2);
+    it("should check minimum compliance level correctly", async () => {
+      await registry.connect(user1).hasMinComplianceLevel(user1.address, 2);
 
-      const encryptedHasMinKyc = await registry.connect(user1).getKycLevelResult(user1.address, 2);
+      const encryptedHasMinCompliance = await registry
+        .connect(user1)
+        .getComplianceLevelResult(user1.address, 2);
 
-      const hasMinKyc = await hre.fhevm.userDecryptEbool(
-        encryptedHasMinKyc,
+      const hasMinCompliance = await hre.fhevm.userDecryptEbool(
+        encryptedHasMinCompliance,
         contractAddress,
         user1,
       );
 
-      expect(hasMinKyc).to.be.true;
+      expect(hasMinCompliance).to.be.true;
     });
 
-    it("should fail KYC check when level is insufficient", async () => {
-      await registry.connect(user1).hasMinKycLevel(user1.address, 5);
+    it("should fail compliance check when level is insufficient", async () => {
+      await registry.connect(user1).hasMinComplianceLevel(user1.address, 5);
 
-      const encryptedHasMinKyc = await registry.connect(user1).getKycLevelResult(user1.address, 5);
+      const encryptedHasMinCompliance = await registry
+        .connect(user1)
+        .getComplianceLevelResult(user1.address, 5);
 
-      const hasMinKyc = await hre.fhevm.userDecryptEbool(
-        encryptedHasMinKyc,
+      const hasMinCompliance = await hre.fhevm.userDecryptEbool(
+        encryptedHasMinCompliance,
         contractAddress,
         user1,
       );
 
-      expect(hasMinKyc).to.be.false;
+      expect(hasMinCompliance).to.be.false;
     });
 
     it("should check not-blacklisted status", async () => {
@@ -270,7 +274,7 @@ describe("IdentityRegistry", () => {
   describe("Access Control Grants", () => {
     it("should block verifier from reading user data without grant", async () => {
       await expect(
-        registry.connect(verifier).getKycLevel(user1.address),
+        registry.connect(verifier).getComplianceLevel(user1.address),
       ).to.be.revertedWithCustomError(registry, "AccessProhibited");
     });
 
@@ -281,16 +285,18 @@ describe("IdentityRegistry", () => {
     });
 
     it("should allow verifier to read user data after grant", async () => {
-      const encryptedKyc = await registry.connect(verifier).getKycLevel(user1.address);
+      const encryptedCompliance = await registry
+        .connect(verifier)
+        .getComplianceLevel(user1.address);
 
-      const kycLevel = await hre.fhevm.userDecryptEuint(
+      const complianceLevel = await hre.fhevm.userDecryptEuint(
         FhevmType.euint8,
-        encryptedKyc,
+        encryptedCompliance,
         contractAddress,
         verifier,
       );
 
-      expect(kycLevel).to.equal(3n);
+      expect(complianceLevel).to.equal(3n);
     });
   });
 

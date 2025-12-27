@@ -36,8 +36,8 @@ contract ComplianceRules is ZamaEthereumConfig {
     /// @notice Pending owner for two-step ownership transfer
     address public pendingOwner;
 
-    /// @notice Minimum KYC level required for compliance
-    uint8 public minKycLevel;
+    /// @notice Minimum compliance level required for compliance
+    uint8 public minComplianceLevel;
 
     /// @notice Store last compliance check result for each user
     mapping(address user => ebool result) private complianceResults;
@@ -47,9 +47,9 @@ contract ComplianceRules is ZamaEthereumConfig {
 
     // ============ Events ============
 
-    /// @notice Emitted when the minimum KYC level requirement is updated
-    /// @param newLevel The new minimum KYC level required for compliance
-    event MinKycLevelUpdated(uint8 indexed newLevel);
+    /// @notice Emitted when the minimum compliance level requirement is updated
+    /// @param newLevel The new minimum compliance level required for compliance
+    event MinComplianceLevelUpdated(uint8 indexed newLevel);
 
     /// @notice Emitted when a compliance check is performed for a user
     /// @param user Address of the user whose compliance was checked
@@ -107,24 +107,24 @@ contract ComplianceRules is ZamaEthereumConfig {
     /**
      * @notice Initialize with identity registry reference
      * @param registry Address of the IdentityRegistry contract
-     * @param initialMinKycLevel Initial minimum KYC level (default: 1)
+     * @param initialMinComplianceLevel Initial minimum compliance level (default: 1)
      */
-    constructor(address registry, uint8 initialMinKycLevel) {
+    constructor(address registry, uint8 initialMinComplianceLevel) {
         if (registry == address(0)) revert RegistryNotSet();
         identityRegistry = IIdentityRegistry(registry);
         owner = msg.sender;
-        minKycLevel = initialMinKycLevel;
+        minComplianceLevel = initialMinComplianceLevel;
     }
 
     // ============ Admin Functions ============
 
     /**
-     * @notice Update minimum KYC level
+     * @notice Update minimum compliance level
      * @param newLevel New minimum level
      */
-    function setMinKycLevel(uint8 newLevel) external onlyOwner {
-        minKycLevel = newLevel;
-        emit MinKycLevelUpdated(newLevel);
+    function setMinComplianceLevel(uint8 newLevel) external onlyOwner {
+        minComplianceLevel = newLevel;
+        emit MinComplianceLevelUpdated(newLevel);
     }
 
     /**
@@ -162,7 +162,7 @@ contract ComplianceRules is ZamaEthereumConfig {
 
     /**
      * @notice Check if user passes all compliance requirements
-     * @dev Combines: hasMinKycLevel AND isNotBlacklisted
+     * @dev Combines: hasMinComplianceLevel AND isNotBlacklisted
      * @param user Address to check
      * @return Encrypted boolean indicating compliance status
      *
@@ -181,11 +181,11 @@ contract ComplianceRules is ZamaEthereumConfig {
         }
 
         // Get individual compliance checks
-        ebool hasKyc = identityRegistry.hasMinKycLevel(user, minKycLevel);
+        ebool hasCompliance = identityRegistry.hasMinComplianceLevel(user, minComplianceLevel);
         ebool notBlacklisted = identityRegistry.isNotBlacklisted(user);
 
         // Combine all conditions
-        ebool result = FHE.and(hasKyc, notBlacklisted);
+        ebool result = FHE.and(hasCompliance, notBlacklisted);
 
         // Store and grant permissions
         complianceResults[user] = result;
@@ -216,12 +216,12 @@ contract ComplianceRules is ZamaEthereumConfig {
         }
 
         // Get individual compliance checks
-        ebool hasKyc = identityRegistry.hasMinKycLevel(user, minKycLevel);
+        ebool hasCompliance = identityRegistry.hasMinComplianceLevel(user, minComplianceLevel);
         ebool notBlacklisted = identityRegistry.isNotBlacklisted(user);
         ebool isFromAllowedCountry = identityRegistry.isFromCountry(user, allowedCountry);
 
         // Combine all conditions
-        ebool result = FHE.and(FHE.and(hasKyc, notBlacklisted), isFromAllowedCountry);
+        ebool result = FHE.and(FHE.and(hasCompliance, notBlacklisted), isFromAllowedCountry);
 
         // Grant permissions
         FHE.allowThis(result);

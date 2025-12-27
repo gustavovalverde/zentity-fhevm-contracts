@@ -8,7 +8,7 @@
       },
       {
         "internalType": "uint8",
-        "name": "initialMinKycLevel",
+        "name": "initialMinComplianceLevel",
         "type": "uint8"
       }
     ],
@@ -92,7 +92,7 @@
         "type": "uint8"
       }
     ],
-    "name": "MinKycLevelUpdated",
+    "name": "MinComplianceLevelUpdated",
     "type": "event"
   },
   {
@@ -268,7 +268,7 @@
   },
   {
     "inputs": [],
-    "name": "minKycLevel",
+    "name": "minComplianceLevel",
     "outputs": [
       {
         "internalType": "uint8",
@@ -331,7 +331,7 @@
         "type": "uint8"
       }
     ],
-    "name": "setMinKycLevel",
+    "name": "setMinComplianceLevel",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

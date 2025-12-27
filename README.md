@@ -6,7 +6,7 @@ fhEVM smart contracts for privacy-preserving identity attestations.
 
 This package provides Solidity contracts using Zama's fhEVM:
 
-- **IdentityRegistry** — encrypted identity attributes (birth year offset, country, KYC, blacklist)
+- **IdentityRegistry** — encrypted identity attributes (birth year offset, country, compliance (KYC) level, blacklist)
 - **ComplianceRules** — encrypted compliance checks with cached results
 - **CompliantERC20** — demo token enforcing compliance on transfers
 
@@ -142,6 +142,7 @@ See `docs/guide.md` for details and best practices.
 
 - `docs/guide.md` (deployment, testing, faucets, ownership)
 - `docs/architecture.md` (contract flow overview)
+- `CONTRIBUTING.md` (pre-commit checklist, changesets, deployments)
 
 ## Development
 

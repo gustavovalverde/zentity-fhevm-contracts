@@ -3,7 +3,7 @@
 ## Components
 
 - **IdentityRegistry**
-  - Stores encrypted user attributes (birth year offset, country code, KYC level, blacklist status).
+  - Stores encrypted user attributes (birth year offset, country code, compliance (KYC) level, blacklist status).
   - Controlled by registrars (typically the backend).
 
 - **ComplianceRules**
@@ -79,7 +79,7 @@ sequenceDiagram
 
   User->>Token: transfer(to, encryptedAmount)
   Token->>CR: checkCompliance(user)
-  CR->>IR: hasMinKycLevel / isNotBlacklisted
+  CR->>IR: hasMinComplianceLevel / isNotBlacklisted
   CR-->>Token: encrypted compliance result
   Token->>Token: FHE.select(transfer or no-op)
 ```

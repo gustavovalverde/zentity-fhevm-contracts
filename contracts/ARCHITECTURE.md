@@ -12,7 +12,7 @@ flowchart TD
     EncIn -- "2) tx call" --> ERC["CompliantERC20"]
 
     subgraph OnChain["On-chain fhEVM"]
-      IR -- "3) Stores encrypted attrs" --> IRState["Encrypted attributes: birthYear/country/kyc/blacklist"]
+      IR -- "3) Stores encrypted attrs" --> IRState["Encrypted attributes: birthYear/country/compliance/blacklist"]
       IR -- "4) ACL grants" --> ACL["ACL per ciphertext handle"]
       ERC -- "5) calls" --> CR["ComplianceRules"]
       CR -- "6) queries" --> IR
