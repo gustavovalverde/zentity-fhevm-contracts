@@ -6,7 +6,7 @@
       "name": "@zentity/fhevm-contracts",
       "dependencies": {
         "@fhevm/solidity": "0.9.1",
-        "@openzeppelin/confidential-contracts": "0.3.0",
+        "@openzeppelin/confidential-contracts": "0.3.1",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.3.10",
@@ -287,7 +287,7 @@
 
     "@nomicfoundation/solidity-analyzer-win32-x64-msvc": ["@nomicfoundation/solidity-analyzer-win32-x64-msvc@0.1.2", "", {}, "sha512-Fdjli4DCcFHb4Zgsz0uEJXZ2K7VEO+w5KVv7HmT7WO10iODdU9csC2az4jrhEsRtiR9Gfd74FlG0NYlw1BMdyA=="],
 
-    "@openzeppelin/confidential-contracts": ["@openzeppelin/confidential-contracts@0.3.0", "", { "peerDependencies": { "@fhevm/solidity": "0.9.1", "@openzeppelin/contracts": "^5.4.0", "@openzeppelin/contracts-upgradeable": "^5.4.0" } }, "sha512-SccPGH4RgmKNtNBhv6gU85Ek/MT99fuI09o14xN4gd6PBrjEetUoAS01dlevP1lpqbAoyM8oiXshOEJ86M5tyw=="],
+    "@openzeppelin/confidential-contracts": ["@openzeppelin/confidential-contracts@0.3.1", "", { "peerDependencies": { "@fhevm/solidity": "0.9.1", "@openzeppelin/contracts": "^5.4.0", "@openzeppelin/contracts-upgradeable": "^5.4.0" } }, "sha512-QudxmMktqHE+oUuBKIR0vTceuQnQTtTT7s+iJqTP6c3DLiLNiTSHLrxIG0bd3fVyS1ZSjzhFhCVpcLZdQXsShg=="],
 
     "@openzeppelin/contracts": ["@openzeppelin/contracts@5.4.0", "", {}, "sha512-eCYgWnLg6WO+X52I16TZt8uEjbtdkgLC0SUX/xnAksjjrQI4Xfn4iBRoI5j55dmlOhDv1Y7BoR3cU7e3WWhC6A=="],
 
