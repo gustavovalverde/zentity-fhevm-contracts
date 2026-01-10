@@ -60,7 +60,7 @@
   },
   "dependencies": {
     "@fhevm/solidity": "0.9.1",
-    "@openzeppelin/confidential-contracts": "0.3.0"
+    "@openzeppelin/confidential-contracts": "0.3.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.10",
