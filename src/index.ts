@@ -8,6 +8,7 @@ import complianceRulesAbi from "../abi/ComplianceRules.json";
 import compliantErc20Abi from "../abi/CompliantERC20.json";
 import identityRegistryAbi from "../abi/IdentityRegistry.json";
 import hardhatAddressesJson from "../deployments/hardhat/addresses.json";
+import sepoliaAddressesJson from "../deployments/sepolia/addresses.json";
 
 export const CONTRACT_NAMES = ["IdentityRegistry", "ComplianceRules", "CompliantERC20"] as const;
 
@@ -27,7 +28,7 @@ export type DeploymentManifest = {
   contracts: Record<ContractName, { address: string; txHash?: string }>;
 };
 
-type HardhatAddressesFile = {
+type AddressesFile = {
   network?: string;
   chainId?: number;
   deployedAt?: string;
@@ -35,7 +36,8 @@ type HardhatAddressesFile = {
   contracts: Record<ContractName, { address: string; txHash?: string }>;
 };
 
-const hardhatAddresses = hardhatAddressesJson as HardhatAddressesFile;
+const hardhatAddresses = hardhatAddressesJson as AddressesFile;
+const sepoliaAddresses = sepoliaAddressesJson as AddressesFile;
 
 export const CHAIN_ID_BY_NETWORK = {
   hardhat: 31337,
@@ -46,26 +48,42 @@ export const CHAIN_ID_BY_NETWORK = {
 export type NetworkName = keyof typeof CHAIN_ID_BY_NETWORK;
 export type ChainId = (typeof CHAIN_ID_BY_NETWORK)[NetworkName];
 
-export const DEPLOYMENTS: Partial<Record<NetworkName, DeploymentManifest>> = {
-  hardhat: {
-    network: hardhatAddresses.network ?? "hardhat",
-    chainId: hardhatAddresses.chainId ?? CHAIN_ID_BY_NETWORK.hardhat,
-    deployedAt: hardhatAddresses.deployedAt,
-    deployer: hardhatAddresses.deployer,
+function toManifest(
+  source: AddressesFile,
+  fallbackNetwork: NetworkName,
+  fallbackChainId: number,
+): DeploymentManifest {
+  return {
+    network: source.network ?? fallbackNetwork,
+    chainId: source.chainId ?? fallbackChainId,
+    deployedAt: source.deployedAt,
+    deployer: source.deployer,
     contracts: {
-      IdentityRegistry: hardhatAddresses.contracts.IdentityRegistry,
-      ComplianceRules: hardhatAddresses.contracts.ComplianceRules,
-      CompliantERC20: hardhatAddresses.contracts.CompliantERC20,
+      IdentityRegistry: source.contracts.IdentityRegistry,
+      ComplianceRules: source.contracts.ComplianceRules,
+      CompliantERC20: source.contracts.CompliantERC20,
     },
-  },
+  };
+}
+
+export const DEPLOYMENTS: Partial<Record<NetworkName, DeploymentManifest>> = {
+  hardhat: toManifest(hardhatAddresses, "hardhat", CHAIN_ID_BY_NETWORK.hardhat),
+  localhost: toManifest(hardhatAddresses, "localhost", CHAIN_ID_BY_NETWORK.localhost),
+  sepolia: toManifest(sepoliaAddresses, "sepolia", CHAIN_ID_BY_NETWORK.sepolia),
 };
 
+function toAddresses(source: AddressesFile): ContractAddresses {
+  return {
+    IdentityRegistry: source.contracts.IdentityRegistry.address,
+    ComplianceRules: source.contracts.ComplianceRules.address,
+    CompliantERC20: source.contracts.CompliantERC20.address,
+  };
+}
+
 export const ADDRESSES = {
-  hardhat: {
-    IdentityRegistry: hardhatAddresses.contracts.IdentityRegistry.address,
-    ComplianceRules: hardhatAddresses.contracts.ComplianceRules.address,
-    CompliantERC20: hardhatAddresses.contracts.CompliantERC20.address,
-  },
+  hardhat: toAddresses(hardhatAddresses),
+  localhost: toAddresses(hardhatAddresses),
+  sepolia: toAddresses(sepoliaAddresses),
 } as const satisfies Record<string, ContractAddresses>;
 
 export const ABIS = {
