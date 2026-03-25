@@ -3,350 +3,398 @@
 pragma solidity ^0.8.27;
 
 import {FHE, euint8, euint16, ebool, externalEuint8, externalEuint16, externalEbool} from "@fhevm/solidity/lib/FHE.sol";
-import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
+import {ZamaConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {IIdentityRegistry} from "../interfaces/IIdentityRegistry.sol";
 
-/**
- * @title IdentityRegistry
- * @author Gustavo Valverde
- * @notice On-chain encrypted identity registry for compliance platforms
- * @dev Part of zentity-fhevm-contracts - Builder Track
- *
- * @custom:category identity
- * @custom:concept Storing encrypted identity attributes (euint8, euint16, ebool)
- * @custom:difficulty intermediate
- *
- * This contract maintains an encrypted identity registry where authorized registrars
- * (typically a backend service) can attest to user identity attributes. All sensitive data
- * remains encrypted on-chain.
- *
- * Key patterns demonstrated:
- * 1. Multiple encrypted types (euint8, euint16, ebool)
- * 2. Role-based access control (registrars)
- * 3. Struct-like data storage with mappings
- * 4. FHE permission management (allowThis, allow)
- */
-contract IdentityRegistry is IIdentityRegistry, ZamaEthereumConfig {
+/// @title IdentityRegistry
+/// @author Gustavo Valverde
+/// @notice On-chain encrypted identity registry with EIP-712 registrar permits,
+///         per-attribute selective grants, and x402 compliance oracle surface.
+/// @dev UUPS-upgradeable. User submits attestation tx with registrar-signed permit.
+///      Compliance checks are composable by x402 facilitators and DeFi contracts
+///      via the branch-free FHE.select() pattern.
+contract IdentityRegistry is
+    IIdentityRegistry,
+    Initializable,
+    UUPSUpgradeable,
+    Ownable2StepUpgradeable,
+    EIP712Upgradeable
+{
+    // ============ Constants ============
+
+    uint8 public constant ATTR_BIRTH_YEAR = 0x01;
+    uint8 public constant ATTR_COUNTRY = 0x02;
+    uint8 public constant ATTR_COMPLIANCE = 0x04;
+    uint8 public constant ATTR_BLACKLIST = 0x08;
+    uint8 public constant ATTR_ALL = 0x0F;
+
+    /// @dev EIP-712 typehash for the attestation permit
+    bytes32 public constant ATTEST_PERMIT_TYPEHASH = keccak256(
+        "AttestPermit(address user,uint8 birthYearOffset,uint16 countryCode,uint8 complianceLevel,bool isBlacklisted,bytes32 proofSetHash,uint32 policyVersion,uint256 nonce,uint256 deadline)"
+    );
+
     // ============ Encrypted Identity Attributes ============
 
-    /// @notice Encrypted birth year offset from 1900
-    mapping(address user => euint8 birthYearOffset) private birthYearOffsets;
+    mapping(address user => euint8 offset) private birthYearOffsets;
+    mapping(address user => euint16 code) private countryCodes;
+    mapping(address user => euint8 level) private complianceLevels;
+    mapping(address user => ebool status) private blacklistStatuses;
 
-    /// @notice Encrypted country code (ISO 3166-1 numeric)
-    mapping(address user => euint16 countryCode) private countryCodes;
+    // ============ Attestation Metadata ============
 
-    /// @notice Encrypted compliance verification level (0-5)
-    mapping(address user => euint8 complianceLevel) private complianceLevels;
-
-    /// @notice Encrypted blacklist status
-    mapping(address user => ebool blacklisted) private isBlacklisted;
-
-    /// @notice Timestamp of last attestation
-    mapping(address user => uint256 timestamp) public attestationTimestamp;
-
-    /// @notice Current attestation id for a user (0 if not attested)
-    mapping(address user => uint256 attestationId) public currentAttestationId;
-
-    /// @notice Latest attestation id ever issued for a user
-    mapping(address user => uint256 attestationId) public latestAttestationId;
-
-    /// @notice Attestation metadata for auditability
-    struct AttestationMetadata {
-        uint256 timestamp;
-        uint256 revokedAt;
-        address registrar;
-    }
-
-    /// @notice Attestation history by user and attestation id
-    mapping(address user => mapping(uint256 attestationId => AttestationMetadata)) private attestationHistory;
-
-    /// @notice Store verification results for external queries
-    mapping(bytes32 key => ebool result) private verificationResults;
+    mapping(address user => uint256 id) public currentAttestationId;
+    mapping(address user => uint256 ts) public attestationTimestamp;
+    mapping(address user => bytes32 hash) public proofSetHashes;
+    mapping(address user => uint32 version) public policyVersions;
+    uint256 public latestAttestationId;
 
     // ============ Access Control ============
 
-    /// @notice Owner of the registry
-    address public owner;
-    /// @notice Pending owner for two-step ownership transfer
-    address public pendingOwner;
-
-    /// @notice Authorized registrars who can attest identities
     mapping(address registrar => bool authorized) public registrars;
+    mapping(address user => uint256 nonce) public nonces;
 
-    /// @notice Thrown when caller lacks permission for encrypted data
-    error AccessProhibited();
+    // ============ Per-Attribute Grants ============
+
+    /// @dev keccak256(user, grantee) => attribute bitmask
+    mapping(bytes32 grantKey => uint8 mask) private attributeGrants;
+
+    // ============ Verification Results ============
+
+    mapping(bytes32 key => ebool result) private verificationResults;
+
+    // ============ Upgrade Safety ============
+
+    /// @dev Reserved storage gap for future upgrades
+    uint256[50] private __gap;
 
     // ============ Modifiers ============
-
-    modifier onlyOwner() {
-        if (msg.sender != owner) revert OnlyOwner();
-        _;
-    }
 
     modifier onlyRegistrar() {
         if (!registrars[msg.sender]) revert OnlyRegistrar();
         _;
     }
 
-    // ============ Constructor ============
+    modifier whenAttested(address user) {
+        if (currentAttestationId[user] == 0) revert NotAttested();
+        _;
+    }
 
-    /// @notice Initializes the registry with the deployer as owner and initial registrar
+    // ============ Initializer ============
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
-        owner = msg.sender;
-        registrars[msg.sender] = true;
-        emit RegistrarAdded(msg.sender);
+        _disableInitializers();
     }
 
-    // ============ Registrar Management ============
+    /// @notice Initialize the registry (called once via proxy)
+    /// @param initialOwner Address that becomes owner and first registrar
+    function initialize(address initialOwner) external initializer {
+        if (initialOwner == address(0)) revert ZeroAddress();
 
-    /// @inheritdoc IIdentityRegistry
-    function addRegistrar(address registrar) external onlyOwner {
-        registrars[registrar] = true;
-        emit RegistrarAdded(registrar);
+        __UUPSUpgradeable_init();
+        __Ownable2Step_init();
+        __Ownable_init(initialOwner);
+        __EIP712_init("ZentityIdentityRegistry", "2");
+
+        // Set up FHEVM coprocessor (replaces ZamaEthereumConfig constructor)
+        FHE.setCoprocessor(ZamaConfig.getEthereumCoprocessorConfig());
+
+        registrars[initialOwner] = true;
+        emit RegistrarUpdated(initialOwner, true);
     }
 
-    /// @inheritdoc IIdentityRegistry
-    function removeRegistrar(address registrar) external onlyOwner {
-        registrars[registrar] = false;
-        emit RegistrarRemoved(registrar);
-    }
-
-    // ============ Identity Attestation ============
+    // ============ Attestation with EIP-712 Permit ============
 
     /// @inheritdoc IIdentityRegistry
-    function attestIdentity(
-        address user,
+    function attestWithPermit(
+        AttestPermitData calldata permit,
         externalEuint8 encBirthYearOffset,
         externalEuint16 encCountryCode,
         externalEuint8 encComplianceLevel,
         externalEbool encIsBlacklisted,
         bytes calldata inputProof
-    ) external onlyRegistrar {
-        if (currentAttestationId[user] != 0) revert AlreadyAttested();
+    ) external {
+        if (currentAttestationId[msg.sender] != 0) revert AlreadyAttested();
+        if (block.timestamp > permit.deadline) revert PermitExpired();
 
-        // Convert and store encrypted values
-        euint8 birthYear = FHE.fromExternal(encBirthYearOffset, inputProof);
-        euint16 country = FHE.fromExternal(encCountryCode, inputProof);
-        euint8 compliance = FHE.fromExternal(encComplianceLevel, inputProof);
-        ebool blacklisted = FHE.fromExternal(encIsBlacklisted, inputProof);
+        // Verify registrar signature over plaintext values
+        _verifyPermit(permit);
 
-        birthYearOffsets[user] = birthYear;
-        countryCodes[user] = country;
-        complianceLevels[user] = compliance;
-        isBlacklisted[user] = blacklisted;
+        // Convert and store FHE-encrypted values
+        _storeEncryptedValues(encBirthYearOffset, encCountryCode, encComplianceLevel, encIsBlacklisted, inputProof);
 
-        // Grant contract permission to all values
-        FHE.allowThis(birthYear);
-        FHE.allowThis(country);
-        FHE.allowThis(compliance);
-        FHE.allowThis(blacklisted);
+        // Store attestation metadata
+        latestAttestationId++;
+        currentAttestationId[msg.sender] = latestAttestationId;
+        attestationTimestamp[msg.sender] = block.timestamp;
+        proofSetHashes[msg.sender] = permit.proofSetHash;
+        policyVersions[msg.sender] = permit.policyVersion;
 
-        // Grant user permission to their own data
-        FHE.allow(birthYear, user);
-        FHE.allow(country, user);
-        FHE.allow(compliance, user);
-        FHE.allow(blacklisted, user);
+        emit IdentityAttested(msg.sender);
+    }
 
-        uint256 newAttestationId = latestAttestationId[user] + 1;
-        latestAttestationId[user] = newAttestationId;
-        currentAttestationId[user] = newAttestationId;
-        attestationHistory[user][newAttestationId] = AttestationMetadata({
-            timestamp: block.timestamp,
-            revokedAt: 0,
-            registrar: msg.sender
-        });
-        attestationTimestamp[user] = block.timestamp;
+    /// @dev Verify the registrar's EIP-712 signature and increment nonce
+    function _verifyPermit(AttestPermitData calldata permit) internal {
+        uint256 currentNonce = nonces[msg.sender];
+        bytes32 structHash = keccak256(
+            abi.encode(
+                ATTEST_PERMIT_TYPEHASH,
+                msg.sender,
+                permit.birthYearOffset,
+                permit.countryCode,
+                permit.complianceLevel,
+                permit.isBlacklisted,
+                permit.proofSetHash,
+                permit.policyVersion,
+                currentNonce,
+                permit.deadline
+            )
+        );
 
-        emit IdentityAttested(user, msg.sender);
-        emit IdentityAttestedDetailed(user, msg.sender, newAttestationId, block.timestamp);
+        address signer = ECDSA.recover(_hashTypedDataV4(structHash), permit.v, permit.r, permit.s);
+        if (!registrars[signer]) revert InvalidPermit();
+
+        nonces[msg.sender] = currentNonce + 1;
+    }
+
+    /// @dev Convert external encrypted inputs, store, and grant ACL permissions
+    function _storeEncryptedValues(
+        externalEuint8 encBirthYearOffset,
+        externalEuint16 encCountryCode,
+        externalEuint8 encComplianceLevel,
+        externalEbool encIsBlacklisted,
+        bytes calldata inputProof
+    ) internal {
+        euint8 encByo = FHE.fromExternal(encBirthYearOffset, inputProof);
+        euint16 encCc = FHE.fromExternal(encCountryCode, inputProof);
+        euint8 encCl = FHE.fromExternal(encComplianceLevel, inputProof);
+        ebool encBl = FHE.fromExternal(encIsBlacklisted, inputProof);
+
+        birthYearOffsets[msg.sender] = encByo;
+        countryCodes[msg.sender] = encCc;
+        complianceLevels[msg.sender] = encCl;
+        blacklistStatuses[msg.sender] = encBl;
+
+        FHE.allowThis(encByo);
+        FHE.allowThis(encCc);
+        FHE.allowThis(encCl);
+        FHE.allowThis(encBl);
+        FHE.allow(encByo, msg.sender);
+        FHE.allow(encCc, msg.sender);
+        FHE.allow(encCl, msg.sender);
+        FHE.allow(encBl, msg.sender);
+    }
+
+    // ============ Bidirectional Revocation ============
+
+    /// @inheritdoc IIdentityRegistry
+    function revokeIdentity() external {
+        _revokeIdentity(msg.sender);
     }
 
     /// @inheritdoc IIdentityRegistry
-    function revokeIdentity(address user) external onlyRegistrar {
-        uint256 attestationId = currentAttestationId[user];
-        if (attestationId == 0) revert NotAttested();
+    function revokeIdentityFor(address user) external onlyRegistrar {
+        _revokeIdentity(user);
+    }
 
-        // Set encrypted values to encrypted zeros
+    function _revokeIdentity(address user) internal {
+        if (currentAttestationId[user] == 0) revert NotAttested();
+
+        // Zero out encrypted values (new ciphertext handles)
         birthYearOffsets[user] = FHE.asEuint8(0);
         countryCodes[user] = FHE.asEuint16(0);
         complianceLevels[user] = FHE.asEuint8(0);
-        isBlacklisted[user] = FHE.asEbool(false);
-        attestationTimestamp[user] = 0;
-        currentAttestationId[user] = 0;
+        blacklistStatuses[user] = FHE.asEbool(false);
 
-        AttestationMetadata storage metadata = attestationHistory[user][attestationId];
-        if (metadata.revokedAt == 0) {
-            metadata.revokedAt = block.timestamp;
-        }
+        // Clear metadata
+        currentAttestationId[user] = 0;
+        attestationTimestamp[user] = 0;
+        proofSetHashes[user] = bytes32(0);
+        policyVersions[user] = 0;
 
         emit IdentityRevoked(user);
-        emit IdentityRevokedDetailed(user, msg.sender, attestationId, block.timestamp);
     }
 
-    // ============ Encrypted Queries ============
+    // ============ Per-Attribute Access Grants ============
 
     /// @inheritdoc IIdentityRegistry
-    function getBirthYearOffset(address user) external view returns (euint8) {
-        if (attestationTimestamp[user] == 0) revert NotAttested();
+    function grantAttributeAccess(
+        address grantee,
+        uint8 attributeMask,
+        Purpose purpose
+    ) external whenAttested(msg.sender) {
+        if (grantee == address(0)) revert ZeroAddress();
+
+        bytes32 grantKey = keccak256(abi.encodePacked(msg.sender, grantee));
+        attributeGrants[grantKey] |= attributeMask;
+
+        // Grant FHE ACL per selected attribute
+        if (attributeMask & ATTR_BIRTH_YEAR != 0) {
+            FHE.allow(birthYearOffsets[msg.sender], grantee);
+        }
+        if (attributeMask & ATTR_COUNTRY != 0) {
+            FHE.allow(countryCodes[msg.sender], grantee);
+        }
+        if (attributeMask & ATTR_COMPLIANCE != 0) {
+            FHE.allow(complianceLevels[msg.sender], grantee);
+        }
+        if (attributeMask & ATTR_BLACKLIST != 0) {
+            FHE.allow(blacklistStatuses[msg.sender], grantee);
+        }
+
+        emit AttributeAccessGranted(msg.sender, grantee, attributeMask, purpose);
+    }
+
+    /// @inheritdoc IIdentityRegistry
+    function grantAccessTo(address grantee) external whenAttested(msg.sender) {
+        if (grantee == address(0)) revert ZeroAddress();
+
+        bytes32 grantKey = keccak256(abi.encodePacked(msg.sender, grantee));
+        attributeGrants[grantKey] = ATTR_ALL;
+
+        FHE.allow(birthYearOffsets[msg.sender], grantee);
+        FHE.allow(countryCodes[msg.sender], grantee);
+        FHE.allow(complianceLevels[msg.sender], grantee);
+        FHE.allow(blacklistStatuses[msg.sender], grantee);
+
+        emit AttributeAccessGranted(msg.sender, grantee, ATTR_ALL, Purpose.COMPLIANCE_CHECK);
+    }
+
+    // ============ Compliance Checks (x402 Oracle Surface) ============
+
+    /// @inheritdoc IIdentityRegistry
+    function checkCompliance(
+        address user,
+        uint8 minLevel
+    ) external whenAttested(user) returns (ebool) {
+        euint8 encMinLevel = FHE.asEuint8(minLevel);
+        ebool meetsLevel = FHE.ge(complianceLevels[user], encMinLevel);
+        ebool notBlocked = FHE.not(blacklistStatuses[user]);
+        ebool result = FHE.and(meetsLevel, notBlocked);
+
+        // Store result and grant permissions
+        bytes32 key = keccak256(abi.encodePacked(user, "compliance", minLevel));
+        verificationResults[key] = result;
+        FHE.allowThis(result);
+        FHE.allow(result, msg.sender);
+
+        return result;
+    }
+
+    /// @inheritdoc IIdentityRegistry
+    function hasMinComplianceLevel(
+        address user,
+        uint8 minLevel
+    ) external whenAttested(user) returns (ebool) {
+        ebool result = FHE.ge(complianceLevels[user], FHE.asEuint8(minLevel));
+
+        bytes32 key = keccak256(abi.encodePacked(user, "minLevel", minLevel));
+        verificationResults[key] = result;
+        FHE.allowThis(result);
+        FHE.allow(result, msg.sender);
+
+        return result;
+    }
+
+    /// @inheritdoc IIdentityRegistry
+    function isFromCountry(
+        address user,
+        uint16 country
+    ) external whenAttested(user) returns (ebool) {
+        ebool result = FHE.eq(countryCodes[user], FHE.asEuint16(country));
+
+        bytes32 key = keccak256(abi.encodePacked(user, "country", country));
+        verificationResults[key] = result;
+        FHE.allowThis(result);
+        FHE.allow(result, msg.sender);
+
+        return result;
+    }
+
+    /// @inheritdoc IIdentityRegistry
+    function isNotBlacklisted(address user) external whenAttested(user) returns (ebool) {
+        ebool result = FHE.not(blacklistStatuses[user]);
+
+        bytes32 key = keccak256(abi.encodePacked(user, "notBlacklisted"));
+        verificationResults[key] = result;
+        FHE.allowThis(result);
+        FHE.allow(result, msg.sender);
+
+        return result;
+    }
+
+    // ============ Encrypted Attribute Getters ============
+
+    /// @inheritdoc IIdentityRegistry
+    function getBirthYearOffset(address user) external view whenAttested(user) returns (euint8) {
         if (!FHE.isSenderAllowed(birthYearOffsets[user])) revert AccessProhibited();
         return birthYearOffsets[user];
     }
 
     /// @inheritdoc IIdentityRegistry
-    function getCountryCode(address user) external view returns (euint16) {
-        if (attestationTimestamp[user] == 0) revert NotAttested();
+    function getCountryCode(address user) external view whenAttested(user) returns (euint16) {
         if (!FHE.isSenderAllowed(countryCodes[user])) revert AccessProhibited();
         return countryCodes[user];
     }
 
     /// @inheritdoc IIdentityRegistry
-    function getComplianceLevel(address user) external view returns (euint8) {
-        if (attestationTimestamp[user] == 0) revert NotAttested();
+    function getComplianceLevel(address user) external view whenAttested(user) returns (euint8) {
         if (!FHE.isSenderAllowed(complianceLevels[user])) revert AccessProhibited();
         return complianceLevels[user];
     }
 
     /// @inheritdoc IIdentityRegistry
-    function getBlacklistStatus(address user) external view returns (ebool) {
-        if (attestationTimestamp[user] == 0) revert NotAttested();
-        if (!FHE.isSenderAllowed(isBlacklisted[user])) revert AccessProhibited();
-        return isBlacklisted[user];
+    function getBlacklistStatus(address user) external view whenAttested(user) returns (ebool) {
+        if (!FHE.isSenderAllowed(blacklistStatuses[user])) revert AccessProhibited();
+        return blacklistStatuses[user];
     }
 
-    // ============ Verification Helpers ============
-
-    /// @inheritdoc IIdentityRegistry
-    function hasMinComplianceLevel(address user, uint8 minLevel) external returns (ebool) {
-        if (attestationTimestamp[user] == 0) revert NotAttested();
-        if (!FHE.isSenderAllowed(complianceLevels[user])) revert AccessProhibited();
-        ebool result = FHE.ge(complianceLevels[user], FHE.asEuint8(minLevel));
-
-        // Store result for later retrieval
-        bytes32 key = keccak256(abi.encodePacked(user, uint8(0), uint256(minLevel)));
-        verificationResults[key] = result;
-
-        // Grant caller permission to decrypt the result
-        FHE.allowThis(result);
-        FHE.allow(result, msg.sender);
-
-        return result;
-    }
-
-    /// @inheritdoc IIdentityRegistry
-    function isFromCountry(address user, uint16 country) external returns (ebool) {
-        if (attestationTimestamp[user] == 0) revert NotAttested();
-        if (!FHE.isSenderAllowed(countryCodes[user])) revert AccessProhibited();
-        ebool result = FHE.eq(countryCodes[user], FHE.asEuint16(country));
-
-        // Store result for later retrieval
-        bytes32 key = keccak256(abi.encodePacked(user, uint8(1), uint256(country)));
-        verificationResults[key] = result;
-
-        // Grant caller permission to decrypt the result
-        FHE.allowThis(result);
-        FHE.allow(result, msg.sender);
-
-        return result;
-    }
-
-    /// @inheritdoc IIdentityRegistry
-    function isNotBlacklisted(address user) external returns (ebool) {
-        if (attestationTimestamp[user] == 0) revert NotAttested();
-        if (!FHE.isSenderAllowed(isBlacklisted[user])) revert AccessProhibited();
-        ebool result = FHE.not(isBlacklisted[user]);
-
-        // Store result for later retrieval
-        bytes32 key = keccak256(abi.encodePacked(user, uint8(2), uint256(0)));
-        verificationResults[key] = result;
-
-        // Grant caller permission to decrypt the result
-        FHE.allowThis(result);
-        FHE.allow(result, msg.sender);
-
-        return result;
-    }
-
-    // ============ Result Getters ============
-
-    /**
-     * @notice Get the last compliance level verification result
-     * @param user Address that was checked
-     * @param minLevel Level that was checked
-     * @return Encrypted boolean result
-     */
-    function getComplianceLevelResult(address user, uint8 minLevel) external view returns (ebool) {
-        bytes32 key = keccak256(abi.encodePacked(user, uint8(0), uint256(minLevel)));
-        ebool result = verificationResults[key];
-        if (!FHE.isSenderAllowed(result)) revert AccessProhibited();
-        return result;
-    }
-
-    /**
-     * @notice Get the last country verification result
-     * @param user Address that was checked
-     * @param country Country code that was checked
-     * @return Encrypted boolean result
-     */
-    function getCountryResult(address user, uint16 country) external view returns (ebool) {
-        bytes32 key = keccak256(abi.encodePacked(user, uint8(1), uint256(country)));
-        ebool result = verificationResults[key];
-        if (!FHE.isSenderAllowed(result)) revert AccessProhibited();
-        return result;
-    }
-
-    /**
-     * @notice Get the last blacklist verification result
-     * @param user Address that was checked
-     * @return Encrypted boolean result
-     */
-    function getBlacklistResult(address user) external view returns (ebool) {
-        bytes32 key = keccak256(abi.encodePacked(user, uint8(2), uint256(0)));
-        ebool result = verificationResults[key];
-        if (!FHE.isSenderAllowed(result)) revert AccessProhibited();
-        return result;
-    }
-
-    // ============ Access Control ============
-
-    /// @inheritdoc IIdentityRegistry
-    function transferOwnership(address newOwner) external onlyOwner {
-        if (newOwner == address(0)) revert InvalidOwner();
-        pendingOwner = newOwner;
-        emit OwnershipTransferStarted(owner, newOwner);
-    }
-
-    /// @inheritdoc IIdentityRegistry
-    function acceptOwnership() external {
-        if (msg.sender != pendingOwner) revert OnlyPendingOwner();
-        address previousOwner = owner;
-        owner = pendingOwner;
-        pendingOwner = address(0);
-        emit OwnershipTransferred(previousOwner, owner);
-    }
-
-    /// @inheritdoc IIdentityRegistry
-    function grantAccessTo(address grantee) external {
-        if (attestationTimestamp[msg.sender] == 0) revert NotAttested();
-
-        FHE.allow(birthYearOffsets[msg.sender], grantee);
-        FHE.allow(countryCodes[msg.sender], grantee);
-        FHE.allow(complianceLevels[msg.sender], grantee);
-        FHE.allow(isBlacklisted[msg.sender], grantee);
-
-        emit AccessGranted(msg.sender, grantee);
-    }
+    // ============ Metadata Getters ============
 
     /// @inheritdoc IIdentityRegistry
     function isAttested(address user) external view returns (bool) {
-        return currentAttestationId[user] > 0;
+        return currentAttestationId[user] != 0;
     }
 
     /// @inheritdoc IIdentityRegistry
-    function getAttestationMetadata(
-        address user,
-        uint256 attestationId
-    ) external view returns (uint256 timestamp, uint256 revokedAt, address registrar) {
-        AttestationMetadata storage metadata = attestationHistory[user][attestationId];
-        return (metadata.timestamp, metadata.revokedAt, metadata.registrar);
+    function getProofSetHash(address user) external view returns (bytes32) {
+        return proofSetHashes[user];
     }
+
+    /// @inheritdoc IIdentityRegistry
+    function getPolicyVersion(address user) external view returns (uint32) {
+        return policyVersions[user];
+    }
+
+    /// @inheritdoc IIdentityRegistry
+    function getGrantedAttributes(address user, address grantee) external view returns (uint8) {
+        return attributeGrants[keccak256(abi.encodePacked(user, grantee))];
+    }
+
+    /// @inheritdoc IIdentityRegistry
+    function getVerificationResult(bytes32 key) external view returns (ebool) {
+        ebool result = verificationResults[key];
+        if (!FHE.isSenderAllowed(result)) revert AccessProhibited();
+        return result;
+    }
+
+    // ============ Admin ============
+
+    /// @notice Add or remove a registrar
+    /// @param registrar Address to update
+    /// @param status true to add, false to remove
+    function setRegistrar(address registrar, bool status) external onlyOwner {
+        if (registrar == address(0)) revert ZeroAddress();
+        registrars[registrar] = status;
+        emit RegistrarUpdated(registrar, status);
+    }
+
+    // ============ UUPS ============
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 }

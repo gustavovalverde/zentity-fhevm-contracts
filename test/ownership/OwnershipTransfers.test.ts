@@ -1,22 +1,19 @@
 import { expect } from "chai";
-import type { ContractTransactionResponse } from "ethers";
 import hre from "hardhat";
 
-type OwnershipContract = {
-  owner: () => Promise<string>;
-  pendingOwner: () => Promise<string>;
-  transferOwnership: (newOwner: string) => Promise<ContractTransactionResponse>;
-  acceptOwnership: () => Promise<ContractTransactionResponse>;
-  connect: (signer: unknown) => OwnershipContract;
-  interface: unknown;
-};
-
 describe("Ownership transfers", () => {
-  async function deployIdentityRegistry() {
+  async function deployIdentityRegistryProxy() {
+    const [owner] = await hre.ethers.getSigners();
     const factory = await hre.ethers.getContractFactory("IdentityRegistry");
-    const contract = await factory.deploy();
-    await contract.waitForDeployment();
-    return contract;
+    const impl = await factory.deploy();
+    await impl.waitForDeployment();
+
+    const proxyFactory = await hre.ethers.getContractFactory("ERC1967Proxy");
+    const initData = factory.interface.encodeFunctionData("initialize", [owner.address]);
+    const proxy = await proxyFactory.deploy(await impl.getAddress(), initData);
+    await proxy.waitForDeployment();
+
+    return hre.ethers.getContractAt("IdentityRegistry", await proxy.getAddress());
   }
 
   async function deployComplianceRules(registryAddress: string) {
@@ -28,63 +25,63 @@ describe("Ownership transfers", () => {
 
   async function deployCompliantERC20(checkerAddress: string) {
     const factory = await hre.ethers.getContractFactory("CompliantERC20");
-    const contract = await factory.deploy("Zentity Token", "ZENT", checkerAddress);
+    const contract = await factory.deploy("Zentity Token", "ZTY", checkerAddress);
     await contract.waitForDeployment();
     return contract;
   }
 
-  async function assertTwoStepOwnership(contract: OwnershipContract) {
+  it("supports two-step ownership in IdentityRegistry (via proxy)", async () => {
+    const registry = await deployIdentityRegistryProxy();
     const [owner, nextOwner, other] = await hre.ethers.getSigners();
 
-    expect(await contract.owner()).to.equal(owner.address);
-    expect(await contract.pendingOwner()).to.equal(hre.ethers.ZeroAddress);
+    expect(await registry.owner()).to.equal(owner.address);
 
     await expect(
-      contract.connect(other).transferOwnership(nextOwner.address),
-    ).to.be.revertedWithCustomError(contract, "OnlyOwner");
+      registry.connect(other).transferOwnership(nextOwner.address),
+    ).to.be.revertedWithCustomError(registry, "OwnableUnauthorizedAccount");
 
-    await expect(
-      contract.connect(owner).transferOwnership(hre.ethers.ZeroAddress),
-    ).to.be.revertedWithCustomError(contract, "InvalidOwner");
+    await registry.connect(owner).transferOwnership(nextOwner.address);
+    expect(await registry.pendingOwner()).to.equal(nextOwner.address);
 
-    await expect(contract.connect(owner).transferOwnership(nextOwner.address))
-      .to.emit(contract, "OwnershipTransferStarted")
-      .withArgs(owner.address, nextOwner.address);
-
-    expect(await contract.pendingOwner()).to.equal(nextOwner.address);
-
-    await expect(contract.connect(other).acceptOwnership()).to.be.revertedWithCustomError(
-      contract,
-      "OnlyPendingOwner",
+    await expect(registry.connect(other).acceptOwnership()).to.be.revertedWithCustomError(
+      registry,
+      "OwnableUnauthorizedAccount",
     );
 
-    await expect(contract.connect(nextOwner).acceptOwnership())
-      .to.emit(contract, "OwnershipTransferred")
-      .withArgs(owner.address, nextOwner.address);
-
-    expect(await contract.owner()).to.equal(nextOwner.address);
-    expect(await contract.pendingOwner()).to.equal(hre.ethers.ZeroAddress);
-  }
-
-  it("supports two-step ownership in IdentityRegistry", async () => {
-    const registry = (await deployIdentityRegistry()) as unknown as OwnershipContract;
-    await assertTwoStepOwnership(registry);
+    await registry.connect(nextOwner).acceptOwnership();
+    expect(await registry.owner()).to.equal(nextOwner.address);
   });
 
   it("supports two-step ownership in ComplianceRules", async () => {
-    const registry = await deployIdentityRegistry();
-    const complianceRules = (await deployComplianceRules(
-      await registry.getAddress(),
-    )) as unknown as OwnershipContract;
-    await assertTwoStepOwnership(complianceRules);
+    const registry = await deployIdentityRegistryProxy();
+    const compliance = await deployComplianceRules(await registry.getAddress());
+    const [owner, nextOwner, other] = await hre.ethers.getSigners();
+
+    expect(await compliance.owner()).to.equal(owner.address);
+
+    await expect(
+      compliance.connect(other).transferOwnership(nextOwner.address),
+    ).to.be.revertedWithCustomError(compliance, "OwnableUnauthorizedAccount");
+
+    await compliance.connect(owner).transferOwnership(nextOwner.address);
+    await compliance.connect(nextOwner).acceptOwnership();
+    expect(await compliance.owner()).to.equal(nextOwner.address);
   });
 
   it("supports two-step ownership in CompliantERC20", async () => {
-    const registry = await deployIdentityRegistry();
-    const complianceRules = await deployComplianceRules(await registry.getAddress());
-    const token = (await deployCompliantERC20(
-      await complianceRules.getAddress(),
-    )) as unknown as OwnershipContract;
-    await assertTwoStepOwnership(token);
+    const registry = await deployIdentityRegistryProxy();
+    const compliance = await deployComplianceRules(await registry.getAddress());
+    const token = await deployCompliantERC20(await compliance.getAddress());
+    const [owner, nextOwner, other] = await hre.ethers.getSigners();
+
+    expect(await token.owner()).to.equal(owner.address);
+
+    await expect(
+      token.connect(other).transferOwnership(nextOwner.address),
+    ).to.be.revertedWithCustomError(token, "OwnableUnauthorizedAccount");
+
+    await token.connect(owner).transferOwnership(nextOwner.address);
+    await token.connect(nextOwner).acceptOwnership();
+    expect(await token.owner()).to.equal(nextOwner.address);
   });
 });

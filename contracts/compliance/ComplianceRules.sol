@@ -3,97 +3,23 @@ pragma solidity ^0.8.27;
 
 import {FHE, ebool} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
+import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IIdentityRegistry} from "../interfaces/IIdentityRegistry.sol";
+import {IComplianceRules} from "../interfaces/IComplianceRules.sol";
 
-/**
- * @title ComplianceRules
- * @author Gustavo Valverde
- * @notice Combines multiple compliance checks using FHE operations
- * @dev Part of zentity-fhevm-contracts - Builder Track
- *
- * @custom:category compliance
- * @custom:concept Combining encrypted compliance checks with FHE.and()
- * @custom:difficulty intermediate
- *
- * This contract aggregates compliance checks from IdentityRegistry and returns
- * encrypted boolean results. Consumer contracts (like CompliantERC20) can use
- * these results with FHE.select() for branch-free logic.
- *
- * Key patterns demonstrated:
- * 1. FHE.and() for combining multiple encrypted conditions
- * 2. Integration with IdentityRegistry
- * 3. Configurable compliance parameters
- * 4. Encrypted result caching
- */
-contract ComplianceRules is ZamaEthereumConfig {
-    // ============ State ============
-
-    /// @notice Reference to the identity registry
+/// @title ComplianceRules
+/// @author Gustavo Valverde
+/// @notice Compliance aggregation contract combining registry checks via FHE.and()
+/// @dev Not proxied — can be redeployed independently. Delegates to the registry's
+///      combined checkCompliance() for the standard case, and composes individual
+///      checks for country-restricted scenarios.
+contract ComplianceRules is IComplianceRules, Ownable2Step, ZamaEthereumConfig {
     IIdentityRegistry public immutable identityRegistry;
 
-    /// @notice Owner/admin
-    address public owner;
-    /// @notice Pending owner for two-step ownership transfer
-    address public pendingOwner;
-
-    /// @notice Minimum compliance level required for compliance
     uint8 public minComplianceLevel;
 
-    /// @notice Store last compliance check result for each user
     mapping(address user => ebool result) private complianceResults;
-
-    /// @notice Authorized callers that can request compliance checks for others
     mapping(address caller => bool authorized) public authorizedCallers;
-
-    // ============ Events ============
-
-    /// @notice Emitted when the minimum compliance level requirement is updated
-    /// @param newLevel The new minimum compliance level required for compliance
-    event MinComplianceLevelUpdated(uint8 indexed newLevel);
-
-    /// @notice Emitted when a compliance check is performed for a user
-    /// @param user Address of the user whose compliance was checked
-    event ComplianceChecked(address indexed user);
-
-    /// @notice Emitted when a caller's authorization is updated
-    /// @param caller Address being authorized or revoked
-    /// @param allowed Whether the caller is allowed
-    event AuthorizedCallerUpdated(address indexed caller, bool indexed allowed);
-
-    /// @notice Emitted when ownership transfer is initiated
-    /// @param currentOwner Current owner address
-    /// @param pendingOwner Address that can accept ownership
-    event OwnershipTransferStarted(address indexed currentOwner, address indexed pendingOwner);
-
-    /// @notice Emitted when ownership transfer is completed
-    /// @param previousOwner Previous owner address
-    /// @param newOwner New owner address
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    // ============ Errors ============
-
-    /// @notice Thrown when caller is not the contract owner
-    error OnlyOwner();
-    /// @notice Thrown when caller is not the pending owner
-    error OnlyPendingOwner();
-    /// @notice Thrown when new owner is the zero address
-    error InvalidOwner();
-
-    /// @notice Thrown when registry address is zero
-    error RegistryNotSet();
-
-    /// @notice Thrown when caller is not authorized to check another user
-    error CallerNotAuthorized();
-
-    /// @notice Thrown when caller lacks permission for encrypted result
-    error AccessProhibited();
-
-    // ============ Modifiers ============
-
-    modifier onlyOwner() {
-        if (msg.sender != owner) revert OnlyOwner();
-        _;
-    }
 
     modifier onlyAuthorizedOrSelf(address user) {
         if (msg.sender != user && !authorizedCallers[msg.sender]) {
@@ -102,154 +28,79 @@ contract ComplianceRules is ZamaEthereumConfig {
         _;
     }
 
-    // ============ Constructor ============
-
-    /**
-     * @notice Initialize with identity registry reference
-     * @param registry Address of the IdentityRegistry contract
-     * @param initialMinComplianceLevel Initial minimum compliance level (default: 1)
-     */
-    constructor(address registry, uint8 initialMinComplianceLevel) {
-        if (registry == address(0)) revert RegistryNotSet();
+    constructor(
+        address registry,
+        uint8 initialMinComplianceLevel
+    ) Ownable(msg.sender) {
+        if (registry == address(0)) revert CallerNotAuthorized();
         identityRegistry = IIdentityRegistry(registry);
-        owner = msg.sender;
         minComplianceLevel = initialMinComplianceLevel;
     }
 
-    // ============ Admin Functions ============
+    // ============ Admin ============
 
-    /**
-     * @notice Update minimum compliance level
-     * @param newLevel New minimum level
-     */
     function setMinComplianceLevel(uint8 newLevel) external onlyOwner {
         minComplianceLevel = newLevel;
         emit MinComplianceLevelUpdated(newLevel);
     }
 
-    /**
-     * @notice Allow or revoke a caller to check compliance for other users
-     * @param caller Address to update
-     * @param allowed Whether the caller is allowed
-     */
     function setAuthorizedCaller(address caller, bool allowed) external onlyOwner {
         authorizedCallers[caller] = allowed;
         emit AuthorizedCallerUpdated(caller, allowed);
     }
 
-    /**
-     * @notice Initiate transfer of contract ownership
-     * @param newOwner Address that can accept ownership
-     */
-    function transferOwnership(address newOwner) external onlyOwner {
-        if (newOwner == address(0)) revert InvalidOwner();
-        pendingOwner = newOwner;
-        emit OwnershipTransferStarted(owner, newOwner);
-    }
-
-    /**
-     * @notice Accept ownership transfer
-     */
-    function acceptOwnership() external {
-        if (msg.sender != pendingOwner) revert OnlyPendingOwner();
-        address previousOwner = owner;
-        owner = pendingOwner;
-        pendingOwner = address(0);
-        emit OwnershipTransferred(previousOwner, owner);
-    }
-
     // ============ Compliance Checks ============
 
-    /**
-     * @notice Check if user passes all compliance requirements
-     * @dev Combines: hasMinComplianceLevel AND isNotBlacklisted
-     * @param user Address to check
-     * @return Encrypted boolean indicating compliance status
-     *
-     * Note: This function makes external calls to IdentityRegistry which
-     * computes and stores verification results. The combined result is
-     * stored locally for later retrieval.
-     */
+    /// @inheritdoc IComplianceRules
     function checkCompliance(address user) external onlyAuthorizedOrSelf(user) returns (ebool) {
-        // Check if user is attested
         if (!identityRegistry.isAttested(user)) {
-            ebool notAttestedResult = FHE.asEbool(false);
-            FHE.allowThis(notAttestedResult);
-            FHE.allow(notAttestedResult, msg.sender);
-            complianceResults[user] = notAttestedResult;
-            return notAttestedResult;
+            return _storeResult(user, FHE.asEbool(false));
         }
 
-        // Get individual compliance checks
-        ebool hasCompliance = identityRegistry.hasMinComplianceLevel(user, minComplianceLevel);
-        ebool notBlacklisted = identityRegistry.isNotBlacklisted(user);
+        // Delegate to registry's combined check (level + blacklist)
+        ebool result = identityRegistry.checkCompliance(user, minComplianceLevel);
 
-        // Combine all conditions
-        ebool result = FHE.and(hasCompliance, notBlacklisted);
-
-        // Store and grant permissions
-        complianceResults[user] = result;
-        FHE.allowThis(result);
-        FHE.allow(result, msg.sender);
-
-        emit ComplianceChecked(user);
-
-        return result;
+        return _storeResult(user, result);
     }
 
-    /**
-     * @notice Check compliance with additional country restriction
-     * @param user Address to check
-     * @param allowedCountry Country code that is allowed
-     * @return Encrypted boolean indicating compliance status
-     */
+    /// @inheritdoc IComplianceRules
     function checkComplianceWithCountry(
         address user,
         uint16 allowedCountry
     ) external onlyAuthorizedOrSelf(user) returns (ebool) {
-        // Check if user is attested
         if (!identityRegistry.isAttested(user)) {
-            ebool notAttestedResult = FHE.asEbool(false);
-            FHE.allowThis(notAttestedResult);
-            FHE.allow(notAttestedResult, msg.sender);
-            return notAttestedResult;
+            return _storeResult(user, FHE.asEbool(false));
         }
 
-        // Get individual compliance checks
-        ebool hasCompliance = identityRegistry.hasMinComplianceLevel(user, minComplianceLevel);
-        ebool notBlacklisted = identityRegistry.isNotBlacklisted(user);
+        // Combined level + blacklist check
+        ebool baseCompliance = identityRegistry.checkCompliance(user, minComplianceLevel);
+        // Additional country restriction
         ebool isFromAllowedCountry = identityRegistry.isFromCountry(user, allowedCountry);
 
-        // Combine all conditions
-        ebool result = FHE.and(FHE.and(hasCompliance, notBlacklisted), isFromAllowedCountry);
+        ebool result = FHE.and(baseCompliance, isFromAllowedCountry);
 
-        // Grant permissions
-        FHE.allowThis(result);
-        FHE.allow(result, msg.sender);
-
-        emit ComplianceChecked(user);
-
-        return result;
+        return _storeResult(user, result);
     }
 
-    /**
-     * @notice Get the last compliance check result for a user
-     * @dev Call checkCompliance first to compute and store the result
-     * @param user Address to get result for
-     * @return Encrypted boolean result
-     */
+    /// @inheritdoc IComplianceRules
     function getComplianceResult(address user) external view returns (ebool) {
         ebool result = complianceResults[user];
         if (!FHE.isSenderAllowed(result)) revert AccessProhibited();
         return result;
     }
 
-    /**
-     * @notice Check if compliance result exists for user
-     * @param user Address to check
-     * @return Whether a cached result exists
-     */
+    /// @inheritdoc IComplianceRules
     function hasComplianceResult(address user) external view returns (bool) {
         return FHE.isInitialized(complianceResults[user]);
+    }
+
+    // ============ Internal ============
+
+    function _storeResult(address user, ebool result) internal returns (ebool) {
+        complianceResults[user] = result;
+        FHE.allowThis(result);
+        FHE.allow(result, msg.sender);
+        emit ComplianceChecked(user);
+        return result;
     }
 }

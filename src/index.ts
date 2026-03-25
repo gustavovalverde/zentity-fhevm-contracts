@@ -157,6 +157,67 @@ export function getContractAddresses(
   return { ...base, ...(options?.overrides ?? {}) };
 }
 
+// ============ v2: EIP-712 Permit Types ============
+
+/** Attribute bitmask constants for grantAttributeAccess */
+export const ATTR = {
+  BIRTH_YEAR: 0x01,
+  COUNTRY: 0x02,
+  COMPLIANCE: 0x04,
+  BLACKLIST: 0x08,
+  ALL: 0x0f,
+} as const;
+
+/** Purpose enum matching the Solidity `IIdentityRegistry.Purpose` */
+export enum Purpose {
+  COMPLIANCE_CHECK = 0,
+  AGE_VERIFICATION = 1,
+  NATIONALITY_CHECK = 2,
+  TRANSFER_GATING = 3,
+  AUDIT = 4,
+}
+
+/** EIP-712 type definition for the attestation permit (compatible with ethers/viem signTypedData) */
+export const ATTEST_PERMIT_TYPES = {
+  AttestPermit: [
+    { name: "user", type: "address" },
+    { name: "birthYearOffset", type: "uint8" },
+    { name: "countryCode", type: "uint16" },
+    { name: "complianceLevel", type: "uint8" },
+    { name: "isBlacklisted", type: "bool" },
+    { name: "proofSetHash", type: "bytes32" },
+    { name: "policyVersion", type: "uint32" },
+    { name: "nonce", type: "uint256" },
+    { name: "deadline", type: "uint256" },
+  ],
+} as const;
+
+/** Build the EIP-712 domain for attestation permit signing */
+export function getAttestPermitDomain(chainId: number, registryAddress: string) {
+  return {
+    name: "ZentityIdentityRegistry",
+    version: "2",
+    chainId,
+    verifyingContract: registryAddress,
+  };
+}
+
+/** TypeScript type for the permit struct (matches Solidity AttestPermitData) */
+export interface AttestPermitData {
+  birthYearOffset: number;
+  countryCode: number;
+  complianceLevel: number;
+  isBlacklisted: boolean;
+  proofSetHash: string;
+  policyVersion: number;
+  deadline: number;
+  v: number;
+  r: string;
+  s: string;
+}
+
+// ============ Address Resolution ============
+
 export function resolveContractAddresses(
   networkOrChainId: NetworkName | number,
   options?: {

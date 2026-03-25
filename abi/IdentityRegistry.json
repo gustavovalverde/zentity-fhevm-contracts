@@ -10,13 +10,77 @@
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "target",
+        "type": "address"
+      }
+    ],
+    "name": "AddressEmptyCode",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "AlreadyAttested",
     "type": "error"
   },
   {
     "inputs": [],
-    "name": "InvalidOwner",
+    "name": "ECDSAInvalidSignature",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "length",
+        "type": "uint256"
+      }
+    ],
+    "name": "ECDSAInvalidSignatureLength",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "s",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ECDSAInvalidSignatureS",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "implementation",
+        "type": "address"
+      }
+    ],
+    "name": "ERC1967InvalidImplementation",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ERC1967NonPayable",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "FailedCall",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidInitialization",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidPermit",
     "type": "error"
   },
   {
@@ -26,12 +90,7 @@
   },
   {
     "inputs": [],
-    "name": "OnlyOwner",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "OnlyPendingOwner",
+    "name": "NotInitializing",
     "type": "error"
   },
   {
@@ -40,8 +99,56 @@
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableInvalidOwner",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableUnauthorizedAccount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PermitExpired",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UUPSUnauthorizedCallContext",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "slot",
+        "type": "bytes32"
+      }
+    ],
+    "name": "UUPSUnsupportedProxiableUUID",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "ZamaProtocolUnsupported",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ZeroAddress",
     "type": "error"
   },
   {
@@ -58,9 +165,27 @@
         "internalType": "address",
         "name": "grantee",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "attributeMask",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum IIdentityRegistry.Purpose",
+        "name": "purpose",
+        "type": "uint8"
       }
     ],
-    "name": "AccessGranted",
+    "name": "AttributeAccessGranted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [],
+    "name": "EIP712DomainChanged",
     "type": "event"
   },
   {
@@ -70,47 +195,10 @@
         "indexed": true,
         "internalType": "address",
         "name": "user",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "registrar",
         "type": "address"
       }
     ],
     "name": "IdentityAttested",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "registrar",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "attestationId",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
-      }
-    ],
-    "name": "IdentityAttestedDetailed",
     "type": "event"
   },
   {
@@ -130,31 +218,13 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "registrar",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "uint256",
-        "name": "attestationId",
-        "type": "uint256"
-      },
-      {
         "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
+        "internalType": "uint64",
+        "name": "version",
+        "type": "uint64"
       }
     ],
-    "name": "IdentityRevokedDetailed",
+    "name": "Initialized",
     "type": "event"
   },
   {
@@ -163,13 +233,13 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "currentOwner",
+        "name": "previousOwner",
         "type": "address"
       },
       {
         "indexed": true,
         "internalType": "address",
-        "name": "pendingOwner",
+        "name": "newOwner",
         "type": "address"
       }
     ],
@@ -203,9 +273,15 @@
         "internalType": "address",
         "name": "registrar",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "status",
+        "type": "bool"
       }
     ],
-    "name": "RegistrarAdded",
+    "name": "RegistrarUpdated",
     "type": "event"
   },
   {
@@ -214,12 +290,103 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "registrar",
+        "name": "implementation",
         "type": "address"
       }
     ],
-    "name": "RegistrarRemoved",
+    "name": "Upgraded",
     "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "ATTEST_PERMIT_TYPEHASH",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ATTR_ALL",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ATTR_BIRTH_YEAR",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ATTR_BLACKLIST",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ATTR_COMPLIANCE",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ATTR_COUNTRY",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "UPGRADE_INTERFACE_VERSION",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
     "inputs": [],
@@ -231,22 +398,61 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "registrar",
-        "type": "address"
-      }
-    ],
-    "name": "addRegistrar",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
+        "components": [
+          {
+            "internalType": "uint8",
+            "name": "birthYearOffset",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint16",
+            "name": "countryCode",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint8",
+            "name": "complianceLevel",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "isBlacklisted",
+            "type": "bool"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "proofSetHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "policyVersion",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint256",
+            "name": "deadline",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint8",
+            "name": "v",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "r",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "s",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct IIdentityRegistry.AttestPermitData",
+        "name": "permit",
+        "type": "tuple"
       },
       {
         "internalType": "externalEuint8",
@@ -274,7 +480,7 @@
         "type": "bytes"
       }
     ],
-    "name": "attestIdentity",
+    "name": "attestWithPermit",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -291,7 +497,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "timestamp",
+        "name": "",
         "type": "uint256"
       }
     ],
@@ -299,16 +505,27 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "confidentialProtocolId",
-    "outputs": [
+    "inputs": [
       {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "uint8",
+        "name": "minLevel",
+        "type": "uint8"
       }
     ],
-    "stateMutability": "view",
+    "name": "checkCompliance",
+    "outputs": [
+      {
+        "internalType": "ebool",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -323,7 +540,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "attestationId",
+        "name": "",
         "type": "uint256"
       }
     ],
@@ -331,34 +548,43 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "attestationId",
-        "type": "uint256"
-      }
-    ],
-    "name": "getAttestationMetadata",
+    "inputs": [],
+    "name": "eip712Domain",
     "outputs": [
       {
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
+        "internalType": "bytes1",
+        "name": "fields",
+        "type": "bytes1"
+      },
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "version",
+        "type": "string"
       },
       {
         "internalType": "uint256",
-        "name": "revokedAt",
+        "name": "chainId",
         "type": "uint256"
       },
       {
         "internalType": "address",
-        "name": "registrar",
+        "name": "verifyingContract",
         "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "salt",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "extensions",
+        "type": "uint256[]"
       }
     ],
     "stateMutability": "view",
@@ -376,25 +602,6 @@
     "outputs": [
       {
         "internalType": "euint8",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      }
-    ],
-    "name": "getBlacklistResult",
-    "outputs": [
-      {
-        "internalType": "ebool",
         "name": "",
         "type": "bytes32"
       }
@@ -446,30 +653,6 @@
         "internalType": "address",
         "name": "user",
         "type": "address"
-      },
-      {
-        "internalType": "uint8",
-        "name": "minLevel",
-        "type": "uint8"
-      }
-    ],
-    "name": "getComplianceLevelResult",
-    "outputs": [
-      {
-        "internalType": "ebool",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
       }
     ],
     "name": "getCountryCode",
@@ -491,12 +674,69 @@
         "type": "address"
       },
       {
-        "internalType": "uint16",
-        "name": "country",
-        "type": "uint16"
+        "internalType": "address",
+        "name": "grantee",
+        "type": "address"
       }
     ],
-    "name": "getCountryResult",
+    "name": "getGrantedAttributes",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "getPolicyVersion",
+    "outputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "getProofSetHash",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "key",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getVerificationResult",
     "outputs": [
       {
         "internalType": "ebool",
@@ -524,6 +764,29 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "grantee",
+        "type": "address"
+      },
+      {
+        "internalType": "uint8",
+        "name": "attributeMask",
+        "type": "uint8"
+      },
+      {
+        "internalType": "enum IIdentityRegistry.Purpose",
+        "name": "purpose",
+        "type": "uint8"
+      }
+    ],
+    "name": "grantAttributeAccess",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "user",
         "type": "address"
       },
@@ -541,6 +804,19 @@
         "type": "bytes32"
       }
     ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "initialOwner",
+        "type": "address"
+      }
+    ],
+    "name": "initialize",
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -607,6 +883,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "latestAttestationId",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -614,11 +903,11 @@
         "type": "address"
       }
     ],
-    "name": "latestAttestationId",
+    "name": "nonces",
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "attestationId",
+        "name": "",
         "type": "uint256"
       }
     ],
@@ -655,6 +944,57 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "policyVersions",
+    "outputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "proofSetHashes",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "proxiableUUID",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "registrar",
         "type": "address"
       }
@@ -671,14 +1011,15 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "registrar",
-        "type": "address"
-      }
-    ],
-    "name": "removeRegistrar",
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "revokeIdentity",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -691,7 +1032,25 @@
         "type": "address"
       }
     ],
-    "name": "revokeIdentity",
+    "name": "revokeIdentityFor",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "registrar",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "status",
+        "type": "bool"
+      }
+    ],
+    "name": "setRegistrar",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -707,6 +1066,24 @@
     "name": "transferOwnership",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newImplementation",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "upgradeToAndCall",
+    "outputs": [],
+    "stateMutability": "payable",
     "type": "function"
   }
 ]

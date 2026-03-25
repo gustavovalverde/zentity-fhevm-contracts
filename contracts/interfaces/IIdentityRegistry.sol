@@ -1,87 +1,61 @@
 // SPDX-License-Identifier: MIT
+// solhint-disable func-name-mixedcase
 pragma solidity ^0.8.27;
 
 import {euint8, euint16, ebool, externalEuint8, externalEuint16, externalEbool} from "@fhevm/solidity/lib/FHE.sol";
 
-/**
- * @title IIdentityRegistry
- * @author Gustavo Valverde
- * @notice Interface for the IdentityRegistry contract
- * @dev Part of zentity-fhevm-contracts - Builder Track
- *
- * @custom:category identity
- * @custom:concept Interface for encrypted identity storage and verification
- * @custom:difficulty intermediate
- */
+/// @title IIdentityRegistry
+/// @author Gustavo Valverde
+/// @notice Interface for the on-chain encrypted identity registry with EIP-712 permits,
+///         per-attribute selective grants, and x402 compliance oracle surface
 interface IIdentityRegistry {
+    // ============ Enums ============
+
+    /// @notice Purpose of an attribute access grant (on-chain equivalent of OAuth scopes)
+    enum Purpose {
+        COMPLIANCE_CHECK,
+        AGE_VERIFICATION,
+        NATIONALITY_CHECK,
+        TRANSFER_GATING,
+        AUDIT
+    }
+
     // ============ Events ============
 
-    /// @notice Emitted when a new registrar is authorized
-    /// @param registrar Address of the authorized registrar
-    event RegistrarAdded(address indexed registrar);
-
-    /// @notice Emitted when a registrar's authorization is revoked
-    /// @param registrar Address of the removed registrar
-    event RegistrarRemoved(address indexed registrar);
-
-    /// @notice Emitted when an identity is attested on-chain
-    /// @param user Address of the attested user
-    /// @param registrar Address of the registrar who performed attestation
-    event IdentityAttested(address indexed user, address indexed registrar);
-
-    /// @notice Emitted when an identity is attested on-chain with metadata
-    /// @param user Address of the attested user
-    /// @param registrar Address of the registrar who performed attestation
-    /// @param attestationId Monotonic attestation identifier for the user
-    /// @param timestamp Unix timestamp of attestation
-    event IdentityAttestedDetailed(
-        address indexed user,
-        address indexed registrar,
-        uint256 indexed attestationId,
-        uint256 timestamp
-    );
+    /// @notice Emitted when an identity is attested via registrar permit
+    event IdentityAttested(address indexed user);
 
     /// @notice Emitted when an identity attestation is revoked
-    /// @param user Address whose attestation was revoked
     event IdentityRevoked(address indexed user);
 
-    /// @notice Emitted when an identity attestation is revoked with metadata
-    /// @param user Address whose attestation was revoked
-    /// @param registrar Address of the registrar who performed the revocation
-    /// @param attestationId Attestation identifier that was revoked
-    /// @param timestamp Unix timestamp of revocation
-    event IdentityRevokedDetailed(
+    /// @notice Emitted when a user grants per-attribute access to a grantee
+    event AttributeAccessGranted(
         address indexed user,
-        address indexed registrar,
-        uint256 indexed attestationId,
-        uint256 timestamp
+        address indexed grantee,
+        uint8 attributeMask,
+        Purpose purpose
     );
 
-    /// @notice Emitted when a user grants access to their encrypted data
-    /// @param user Address of the user granting access
-    /// @param grantee Address receiving access permission
-    event AccessGranted(address indexed user, address indexed grantee);
+    /// @notice Emitted when a registrar is added or removed
+    event RegistrarUpdated(address indexed registrar, bool status);
 
-    /// @notice Emitted when ownership transfer is initiated
-    /// @param currentOwner Current owner address
-    /// @param pendingOwner Address that can accept ownership
-    event OwnershipTransferStarted(address indexed currentOwner, address indexed pendingOwner);
+    // ============ Structs ============
 
-    /// @notice Emitted when ownership transfer is completed
-    /// @param previousOwner Previous owner address
-    /// @param newOwner New owner address
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    /// @notice Registrar-signed permit data for user-submitted attestation
+    struct AttestPermitData {
+        uint8 birthYearOffset;
+        uint16 countryCode;
+        uint8 complianceLevel;
+        bool isBlacklisted;
+        bytes32 proofSetHash;
+        uint32 policyVersion;
+        uint256 deadline;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+    }
 
     // ============ Errors ============
-
-    /// @notice Thrown when caller is not the contract owner
-    error OnlyOwner();
-
-    /// @notice Thrown when caller is not the pending owner
-    error OnlyPendingOwner();
-
-    /// @notice Thrown when new owner is the zero address
-    error InvalidOwner();
 
     /// @notice Thrown when caller is not an authorized registrar
     error OnlyRegistrar();
@@ -92,27 +66,32 @@ interface IIdentityRegistry {
     /// @notice Thrown when attempting to attest an already-attested user
     error AlreadyAttested();
 
-    // ============ Registrar Management ============
+    /// @notice Thrown when the EIP-712 permit signature is invalid
+    error InvalidPermit();
 
-    /// @notice Add a new authorized registrar
-    /// @param registrar Address to authorize as registrar
-    function addRegistrar(address registrar) external;
+    /// @notice Thrown when the permit deadline has passed
+    error PermitExpired();
 
-    /// @notice Remove an authorized registrar
-    /// @param registrar Address to remove from registrars
-    function removeRegistrar(address registrar) external;
+    /// @notice Thrown when an address argument is the zero address
+    error ZeroAddress();
 
-    // ============ Identity Attestation ============
+    /// @notice Thrown when caller lacks FHE permission for encrypted data
+    error AccessProhibited();
 
-    /// @notice Attest a user's encrypted identity data on-chain
-    /// @param user Address of the user being attested
-    /// @param encBirthYearOffset Encrypted birth year offset (years since 1900)
-    /// @param encCountryCode Encrypted ISO 3166-1 numeric country code
-    /// @param encComplianceLevel Encrypted compliance verification level (0-3)
-    /// @param encIsBlacklisted Encrypted blacklist status
-    /// @param inputProof FHE proof for encrypted inputs
-    function attestIdentity(
-        address user,
+    // ============ Attestation with Permit ============
+
+    /// @notice Attest identity using a registrar-signed EIP-712 permit
+    /// @dev The user submits this transaction with their own FHE-encrypted values.
+    ///      The contract verifies the registrar's signature over the plaintext values
+    ///      and stores the user's encrypted values. Nonce is auto-incremented.
+    /// @param permit Registrar-signed permit containing plaintext values + ECDSA signature
+    /// @param encBirthYearOffset FHE-encrypted birth year offset
+    /// @param encCountryCode FHE-encrypted country code
+    /// @param encComplianceLevel FHE-encrypted compliance level
+    /// @param encIsBlacklisted FHE-encrypted blacklist status
+    /// @param inputProof FHE input proof binding encrypted values to (contract, user)
+    function attestWithPermit(
+        AttestPermitData calldata permit,
         externalEuint8 encBirthYearOffset,
         externalEuint16 encCountryCode,
         externalEuint8 encComplianceLevel,
@@ -120,107 +99,102 @@ interface IIdentityRegistry {
         bytes calldata inputProof
     ) external;
 
-    /// @notice Revoke a user's identity attestation
+    // ============ Revocation ============
+
+    /// @notice Revoke caller's own attestation (user self-revocation)
+    function revokeIdentity() external;
+
+    /// @notice Revoke a user's attestation (registrar-only)
     /// @param user Address of the user to revoke
-    function revokeIdentity(address user) external;
+    function revokeIdentityFor(address user) external;
 
-    // ============ Encrypted Queries ============
+    // ============ Per-Attribute Access Grants ============
 
-    /// @notice Get user's encrypted birth year offset
-    /// @param user Address of the user
-    /// @return Encrypted birth year offset (years since 1900)
-    function getBirthYearOffset(address user) external view returns (euint8);
+    /// @notice Grant FHE access to specific attributes for a stated purpose
+    /// @param grantee Address receiving access permission
+    /// @param attributeMask Bitmask: 0x01=birthYear, 0x02=country, 0x04=compliance, 0x08=blacklist
+    /// @param purpose Why access is needed (on-chain audit trail)
+    function grantAttributeAccess(address grantee, uint8 attributeMask, Purpose purpose) external;
 
-    /// @notice Get user's encrypted country code
-    /// @param user Address of the user
-    /// @return Encrypted ISO 3166-1 numeric country code
-    function getCountryCode(address user) external view returns (euint16);
+    /// @notice Grant FHE access to all attributes (convenience wrapper)
+    /// @param grantee Address receiving access permission
+    function grantAccessTo(address grantee) external;
 
-    /// @notice Get user's encrypted compliance level
-    /// @param user Address of the user
-    /// @return Encrypted compliance (KYC) verification level (0-3)
-    function getComplianceLevel(address user) external view returns (euint8);
+    // ============ Compliance Checks (x402 Oracle Surface) ============
 
-    /// @notice Get user's encrypted blacklist status
-    /// @param user Address of the user
-    /// @return Encrypted blacklist status (true if blacklisted)
-    function getBlacklistStatus(address user) external view returns (ebool);
-
-    // ============ Verification Helpers ============
-
-    /// @notice Check if user has minimum compliance level (encrypted comparison)
-    /// @param user Address of the user
+    /// @notice Combined compliance check: level >= minLevel AND not blacklisted
+    /// @dev State-mutating (FHE comparisons). Stores and returns encrypted result.
+    ///      x402 facilitators compose this inline:
+    ///      `euint64 amt = FHE.select(registry.checkCompliance(payer, 2), amount, zero);`
+    /// @param user Address to check
     /// @param minLevel Minimum compliance level required
-    /// @return Encrypted boolean result of comparison
+    /// @return Encrypted boolean: true if compliant
+    function checkCompliance(address user, uint8 minLevel) external returns (ebool);
+
+    /// @notice Check if user meets minimum compliance level
+    /// @param user Address to check
+    /// @param minLevel Minimum level required
+    /// @return Encrypted boolean result
     function hasMinComplianceLevel(address user, uint8 minLevel) external returns (ebool);
 
-    /// @notice Check if user is from a specific country (encrypted comparison)
-    /// @param user Address of the user
-    /// @param country ISO 3166-1 numeric country code to check
-    /// @return Encrypted boolean result of comparison
+    /// @notice Check if user is from a specific country
+    /// @param user Address to check
+    /// @param country ISO 3166-1 numeric country code
+    /// @return Encrypted boolean result
     function isFromCountry(address user, uint16 country) external returns (ebool);
 
-    /// @notice Check if user is not blacklisted (encrypted)
-    /// @param user Address of the user
+    /// @notice Check if user is not blacklisted
+    /// @param user Address to check
     /// @return Encrypted boolean (true if NOT blacklisted)
     function isNotBlacklisted(address user) external returns (ebool);
 
-    // ============ Access Control ============
+    // ============ View Getters ============
 
-    /// @notice Grant a contract access to caller's encrypted identity data
-    /// @param grantee Address to grant access to
-    function grantAccessTo(address grantee) external;
-
-    /// @notice Check if a user has been attested
-    /// @param user Address of the user
-    /// @return True if user has valid attestation
+    /// @notice Check if a user has a valid attestation
     function isAttested(address user) external view returns (bool);
 
-    // ============ Public State ============
+    /// @notice Get user's encrypted birth year offset (caller must have FHE ACL access)
+    function getBirthYearOffset(address user) external view returns (euint8);
 
-    /// @notice Get the contract owner address
-    /// @return Owner address
-    function owner() external view returns (address);
+    /// @notice Get user's encrypted country code (caller must have FHE ACL access)
+    function getCountryCode(address user) external view returns (euint16);
 
-    /// @notice Get the pending owner address
-    /// @return Pending owner address
-    function pendingOwner() external view returns (address);
+    /// @notice Get user's encrypted compliance level (caller must have FHE ACL access)
+    function getComplianceLevel(address user) external view returns (euint8);
 
-    /// @notice Initiate transfer of contract ownership
-    /// @param newOwner Address that can accept ownership
-    function transferOwnership(address newOwner) external;
+    /// @notice Get user's encrypted blacklist status (caller must have FHE ACL access)
+    function getBlacklistStatus(address user) external view returns (ebool);
 
-    /// @notice Accept ownership transfer
-    function acceptOwnership() external;
+    /// @notice Get the proof set hash for a user's attestation
+    function getProofSetHash(address user) external view returns (bytes32);
 
-    /// @notice Check if an address is an authorized registrar
-    /// @param registrar Address to check
-    /// @return True if address is authorized registrar
-    function registrars(address registrar) external view returns (bool);
+    /// @notice Get the policy version for a user's attestation
+    function getPolicyVersion(address user) external view returns (uint32);
 
-    /// @notice Get the timestamp when a user was attested
-    /// @param user Address of the user
-    /// @return Unix timestamp of attestation (0 if not attested)
-    function attestationTimestamp(address user) external view returns (uint256);
+    /// @notice Get the attribute mask granted to a grantee by a user
+    function getGrantedAttributes(address user, address grantee) external view returns (uint8);
 
-    /// @notice Get the current attestation id for a user (0 if not attested)
-    /// @param user Address of the user
-    /// @return Current attestation id
+    /// @notice Get the current attestation ID for a user (0 if not attested)
     function currentAttestationId(address user) external view returns (uint256);
 
-    /// @notice Get the latest attestation id ever issued for a user
-    /// @param user Address of the user
-    /// @return Latest attestation id
-    function latestAttestationId(address user) external view returns (uint256);
+    /// @notice Get the timestamp when a user was attested
+    function attestationTimestamp(address user) external view returns (uint256);
 
-    /// @notice Get attestation metadata for a user and attestation id
-    /// @param user Address of the user
-    /// @param attestationId Attestation identifier to query
-    /// @return timestamp Unix timestamp of attestation
-    /// @return revokedAt Unix timestamp of revocation (0 if not revoked)
-    /// @return registrar Registrar who performed the attestation
-    function getAttestationMetadata(
-        address user,
-        uint256 attestationId
-    ) external view returns (uint256 timestamp, uint256 revokedAt, address registrar);
+    /// @notice Get the EIP-712 nonce for a user (for permit construction)
+    function nonces(address user) external view returns (uint256);
+
+    /// @notice Check if an address is an authorized registrar
+    function registrars(address registrar) external view returns (bool);
+
+    /// @notice Get a previously stored verification result
+    /// @param key The result key (keccak256 of check parameters)
+    function getVerificationResult(bytes32 key) external view returns (ebool);
+
+    // ============ Constants ============
+
+    function ATTR_BIRTH_YEAR() external pure returns (uint8);
+    function ATTR_COUNTRY() external pure returns (uint8);
+    function ATTR_COMPLIANCE() external pure returns (uint8);
+    function ATTR_BLACKLIST() external pure returns (uint8);
+    function ATTR_ALL() external pure returns (uint8);
 }

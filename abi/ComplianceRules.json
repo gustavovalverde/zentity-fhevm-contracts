@@ -26,23 +26,25 @@
     "type": "error"
   },
   {
-    "inputs": [],
-    "name": "InvalidOwner",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableInvalidOwner",
     "type": "error"
   },
   {
-    "inputs": [],
-    "name": "OnlyOwner",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "OnlyPendingOwner",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "RegistryNotSet",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableUnauthorizedAccount",
     "type": "error"
   },
   {
@@ -101,13 +103,13 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "currentOwner",
+        "name": "previousOwner",
         "type": "address"
       },
       {
         "indexed": true,
         "internalType": "address",
-        "name": "pendingOwner",
+        "name": "newOwner",
         "type": "address"
       }
     ],
@@ -303,6 +305,13 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

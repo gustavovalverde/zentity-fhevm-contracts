@@ -26,18 +26,25 @@
     "type": "error"
   },
   {
-    "inputs": [],
-    "name": "InvalidOwner",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableInvalidOwner",
     "type": "error"
   },
   {
-    "inputs": [],
-    "name": "OnlyOwner",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "OnlyPendingOwner",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableUnauthorizedAccount",
     "type": "error"
   },
   {
@@ -112,13 +119,13 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "currentOwner",
+        "name": "previousOwner",
         "type": "address"
       },
       {
         "indexed": true,
         "internalType": "address",
-        "name": "pendingOwner",
+        "name": "newOwner",
         "type": "address"
       }
     ],
@@ -229,7 +236,7 @@
     "outputs": [
       {
         "internalType": "bool",
-        "name": "success",
+        "name": "",
         "type": "bool"
       }
     ],
@@ -260,7 +267,7 @@
     "name": "complianceChecker",
     "outputs": [
       {
-        "internalType": "contract IComplianceChecker",
+        "internalType": "contract IComplianceRules",
         "name": "",
         "type": "address"
       }
@@ -352,6 +359,13 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -412,7 +426,7 @@
     "outputs": [
       {
         "internalType": "bool",
-        "name": "success",
+        "name": "",
         "type": "bool"
       }
     ],
@@ -436,7 +450,7 @@
     "outputs": [
       {
         "internalType": "bool",
-        "name": "success",
+        "name": "",
         "type": "bool"
       }
     ],
@@ -470,7 +484,7 @@
     "outputs": [
       {
         "internalType": "bool",
-        "name": "success",
+        "name": "",
         "type": "bool"
       }
     ],

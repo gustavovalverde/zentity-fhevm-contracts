@@ -5,8 +5,8 @@ import { getContractAddresses, getNetworkName, resolveContractAddresses } from "
 describe("address helpers", () => {
   it("returns hardhat addresses from deployments", () => {
     const addresses = getContractAddresses("hardhat");
-    expect(addresses.IdentityRegistry).to.equal("0x5FbDB2315678afecb367f032d93F642f64180aa3");
-    expect(addresses.ComplianceRules).to.equal("0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0");
+    expect(addresses.IdentityRegistry).to.equal("0x5FC8d32690cc91D4c39d9d3abcBD16989F875707");
+    expect(addresses.ComplianceRules).to.equal("0xa513E6E4b8f2a923D98304ec87F64353C4D5C853");
   });
 
   it("returns sepolia addresses from deployments", () => {
