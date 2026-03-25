@@ -11,9 +11,9 @@ describe("address helpers", () => {
 
   it("returns sepolia addresses from deployments", () => {
     const addresses = getContractAddresses("sepolia");
-    expect(addresses.IdentityRegistry).to.equal("0x05c6FB879BbF0Cab2B0206523583F94E49Ba62e2");
-    expect(addresses.ComplianceRules).to.equal("0x78dE340fc7A6ba470a5dD8b0a5f5933cD48dC164");
-    expect(addresses.CompliantERC20).to.equal("0x2CBEF5Da4F16346bBb34C3D7a81bFC0D9882c711");
+    expect(addresses.IdentityRegistry).to.equal("0xa90723A47A14437500645Ece6049d0128A2f256D");
+    expect(addresses.ComplianceRules).to.equal("0xDea37357418134e1A3ee21FAc2Fe28FD9b9908aa");
+    expect(addresses.CompliantERC20).to.equal("0x39bc2b0717c21b5ac37BE1c552B7F69ce49F28c1");
   });
 
   it("resolves network name by chainId", () => {
@@ -28,7 +28,7 @@ describe("address helpers", () => {
       },
     });
     expect(addresses.IdentityRegistry).to.equal("0x0000000000000000000000000000000000000099");
-    expect(addresses.ComplianceRules).to.equal("0x78dE340fc7A6ba470a5dD8b0a5f5933cD48dC164");
+    expect(addresses.ComplianceRules).to.equal("0xDea37357418134e1A3ee21FAc2Fe28FD9b9908aa");
   });
 
   it("resolves by chainId with overrides", () => {
@@ -38,6 +38,6 @@ describe("address helpers", () => {
       },
     });
     expect(addresses.CompliantERC20).to.equal("0x0000000000000000000000000000000000000042");
-    expect(addresses.IdentityRegistry).to.equal("0x05c6FB879BbF0Cab2B0206523583F94E49Ba62e2");
+    expect(addresses.IdentityRegistry).to.equal("0xa90723A47A14437500645Ece6049d0128A2f256D");
   });
 });

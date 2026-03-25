@@ -3,16 +3,15 @@
   "chainId": 11155111,
   "contracts": {
     "IdentityRegistry": {
-      "address": "0x05c6FB879BbF0Cab2B0206523583F94E49Ba62e2",
-      "txHash": "0x203b1dec1bbb029c5ad0dfcfa5ee60d6da1cfb85308a445a5cd48564343082bb"
+      "address": "0xa90723A47A14437500645Ece6049d0128A2f256D"
     },
     "ComplianceRules": {
-      "address": "0x78dE340fc7A6ba470a5dD8b0a5f5933cD48dC164",
-      "txHash": "0xe0ccb896555413504f26240b4e0977b5da6a16125d72ec4c98129bf1f48553dd"
+      "address": "0xDea37357418134e1A3ee21FAc2Fe28FD9b9908aa",
+      "txHash": "0xcc52086f64084b176c30acc60e8eb829d6cbe057cb612ae58ecd65ec5cef3382"
     },
     "CompliantERC20": {
-      "address": "0x2CBEF5Da4F16346bBb34C3D7a81bFC0D9882c711",
-      "txHash": "0x31c7bf7c5b461787fd11f68567a99400a6811c57138ce82971d8e6b039540865"
+      "address": "0x39bc2b0717c21b5ac37BE1c552B7F69ce49F28c1",
+      "txHash": "0xd483519d47f6785d21fdfb9583809fac6f03b0e4b259c9acd3a66b1f2e84e264"
     }
   }
 }

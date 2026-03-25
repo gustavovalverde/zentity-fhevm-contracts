@@ -497,7 +497,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "ts",
         "type": "uint256"
       }
     ],
@@ -540,7 +540,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "id",
         "type": "uint256"
       }
     ],
@@ -907,7 +907,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "nonce",
         "type": "uint256"
       }
     ],
@@ -952,7 +952,7 @@
     "outputs": [
       {
         "internalType": "uint32",
-        "name": "",
+        "name": "version",
         "type": "uint32"
       }
     ],
@@ -971,7 +971,7 @@
     "outputs": [
       {
         "internalType": "bytes32",
-        "name": "",
+        "name": "hash",
         "type": "bytes32"
       }
     ],
