@@ -22,11 +22,6 @@
   },
   {
     "inputs": [],
-    "name": "AlreadyAttested",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "ECDSAInvalidSignature",
     "type": "error"
   },
@@ -139,6 +134,11 @@
       }
     ],
     "name": "UUPSUnsupportedProxiableUUID",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UnauthorizedPolicy",
     "type": "error"
   },
   {
@@ -271,6 +271,25 @@
       {
         "indexed": true,
         "internalType": "address",
+        "name": "policy",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "status",
+        "type": "bool"
+      }
+    ],
+    "name": "PolicyUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
         "name": "registrar",
         "type": "address"
       },
@@ -377,6 +396,19 @@
   },
   {
     "inputs": [],
+    "name": "CONSENT_TYPEHASH",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "UPGRADE_INTERFACE_VERSION",
     "outputs": [
       {
@@ -455,6 +487,31 @@
         "type": "tuple"
       },
       {
+        "internalType": "uint8",
+        "name": "consentV",
+        "type": "uint8"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "consentR",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "consentS",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint8",
+        "name": "consentAttributeMask",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint256",
+        "name": "consentDeadline",
+        "type": "uint256"
+      },
+      {
         "internalType": "externalEuint8",
         "name": "encBirthYearOffset",
         "type": "bytes32"
@@ -499,6 +556,25 @@
         "internalType": "uint256",
         "name": "ts",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "policy",
+        "type": "address"
+      }
+    ],
+    "name": "authorizedPolicies",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "authorized",
+        "type": "bool"
       }
     ],
     "stateMutability": "view",
@@ -1018,6 +1094,25 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "revisions",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "rev",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "revokeIdentity",
     "outputs": [],
@@ -1033,6 +1128,24 @@
       }
     ],
     "name": "revokeIdentityFor",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "policy",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "status",
+        "type": "bool"
+      }
+    ],
+    "name": "setAuthorizedPolicy",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

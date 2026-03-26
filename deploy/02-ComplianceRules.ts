@@ -3,7 +3,7 @@ import type { DeployFunction } from "hardhat-deploy/types";
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deployer } = await hre.getNamedAccounts();
-  const { deploy, get } = hre.deployments;
+  const { deploy, execute, get } = hre.deployments;
 
   const registry = await get("IdentityRegistry");
   const minComplianceLevel = 1;
@@ -13,6 +13,14 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     args: [registry.address, minComplianceLevel],
     log: true,
   });
+
+  await execute(
+    "IdentityRegistry",
+    { from: deployer, log: true },
+    "setAuthorizedPolicy",
+    (await get("ComplianceRules")).address,
+    true,
+  );
 
   console.log(`  Registry: ${registry.address}`);
   console.log(`  Min Compliance Level: ${minComplianceLevel}`);

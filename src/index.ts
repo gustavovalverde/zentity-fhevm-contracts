@@ -157,7 +157,7 @@ export function getContractAddresses(
   return { ...base, ...(options?.overrides ?? {}) };
 }
 
-// ============ v2: EIP-712 Permit Types ============
+// ============ EIP-712 Permit Types ============
 
 /** Attribute bitmask constants for grantAttributeAccess */
 export const ATTR = {
@@ -214,6 +214,48 @@ export interface AttestPermitData {
   v: number;
   r: string;
   s: string;
+}
+
+// ============ User Consent Types ============
+
+/** EIP-712 type definition for user consent receipt */
+export const CONSENT_TYPES = {
+  UserConsent: [
+    { name: "user", type: "address" },
+    { name: "attributeMask", type: "uint8" },
+    { name: "chainId", type: "uint256" },
+    { name: "revision", type: "uint256" },
+    { name: "deadline", type: "uint256" },
+  ],
+} as const;
+
+/** TypeScript type for the consent struct */
+export interface UserConsent {
+  user: string;
+  attributeMask: number;
+  chainId: number;
+  revision: number;
+  deadline: number;
+}
+
+/** TypeScript type for the consent signature (v, r, s components) */
+export interface ConsentSignature {
+  v: number;
+  r: string;
+  s: string;
+  attributeMask: number;
+  deadline: number;
+}
+
+/** Compute the revision that a consent signature should bind to. */
+export function getConsentRevision(currentRevision: bigint, isCurrentlyAttested: boolean): bigint;
+export function getConsentRevision(currentRevision: number, isCurrentlyAttested: boolean): number;
+export function getConsentRevision(currentRevision: bigint | number, isCurrentlyAttested: boolean) {
+  if (!isCurrentlyAttested) {
+    return currentRevision;
+  }
+
+  return typeof currentRevision === "bigint" ? currentRevision + 1n : currentRevision + 1;
 }
 
 // ============ Address Resolution ============

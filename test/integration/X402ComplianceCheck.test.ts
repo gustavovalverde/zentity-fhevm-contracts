@@ -71,6 +71,11 @@ describe("x402 Compliance Oracle", () => {
       .connect(userSigner)
       .attestWithPermit(
         permit,
+        0,
+        hre.ethers.ZeroHash,
+        hre.ethers.ZeroHash,
+        0,
+        0,
         encryptedInput.handles[0],
         encryptedInput.handles[1],
         encryptedInput.handles[2],
@@ -101,6 +106,9 @@ describe("x402 Compliance Oracle", () => {
     const facFactory = await hre.ethers.getContractFactory("MockFacilitator");
     facilitator = await facFactory.deploy(registryAddress, 2);
     await facilitator.waitForDeployment();
+
+    // Authorize the facilitator as a policy contract
+    await registry.connect(owner).setAuthorizedPolicy(await facilitator.getAddress(), true);
 
     // EIP-712 domain
     const chainId = (await hre.ethers.provider.getNetwork()).chainId;

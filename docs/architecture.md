@@ -1,5 +1,9 @@
 # Architecture
 
+This document describes the current repository architecture and demo-oriented
+flow. For the recommended long-term product direction, see
+[Production Attestation Architecture](production-attestation-architecture.md).
+
 ## Components
 
 - **IdentityRegistry**

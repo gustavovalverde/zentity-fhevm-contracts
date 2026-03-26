@@ -22,9 +22,7 @@ const PERMIT_TYPES = {
 };
 
 describe("Full Integration Flow", () => {
-  // biome-ignore lint: test file, dynamic contract types
   let registry: any;
-  // biome-ignore lint: test file, dynamic contract types
   let token: any;
 
   let registryAddress: string;
@@ -55,6 +53,9 @@ describe("Full Integration Flow", () => {
     const comp = await compFactory.deploy(registryAddress, 1);
     await comp.waitForDeployment();
     complianceAddress = await comp.getAddress();
+
+    // Authorize ComplianceRules as a policy contract
+    await (reg as any).setAuthorizedPolicy(complianceAddress, true);
 
     // 3. CompliantERC20
     const tokFactory = await hre.ethers.getContractFactory("CompliantERC20");
@@ -111,6 +112,11 @@ describe("Full Integration Flow", () => {
       .connect(userSigner)
       .attestWithPermit(
         permit,
+        0,
+        hre.ethers.ZeroHash,
+        hre.ethers.ZeroHash,
+        0,
+        0,
         encryptedInput.handles[0],
         encryptedInput.handles[1],
         encryptedInput.handles[2],

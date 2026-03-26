@@ -13,11 +13,9 @@ import {IIdentityRegistry} from "../interfaces/IIdentityRegistry.sol";
 
 /// @title IdentityRegistry
 /// @author Gustavo Valverde
-/// @notice On-chain encrypted identity registry with EIP-712 registrar permits,
-///         per-attribute selective grants, and x402 compliance oracle surface.
-/// @dev UUPS-upgradeable. User submits attestation tx with registrar-signed permit.
-///      Compliance checks are composable by x402 facilitators and DeFi contracts
-///      via the branch-free FHE.select() pattern.
+/// @notice On-chain encrypted identity registry with revision-scoped grants,
+///         consent receipts, policy-authorized predicates, and x402 oracle surface.
+/// @dev UUPS-upgradeable.
 contract IdentityRegistry is
     IIdentityRegistry,
     Initializable,
@@ -36,6 +34,11 @@ contract IdentityRegistry is
     /// @dev EIP-712 typehash for the attestation permit
     bytes32 public constant ATTEST_PERMIT_TYPEHASH = keccak256(
         "AttestPermit(address user,uint8 birthYearOffset,uint16 countryCode,uint8 complianceLevel,bool isBlacklisted,bytes32 proofSetHash,uint32 policyVersion,uint256 nonce,uint256 deadline)"
+    );
+
+    /// @dev EIP-712 typehash for user consent receipt
+    bytes32 public constant CONSENT_TYPEHASH = keccak256(
+        "UserConsent(address user,uint8 attributeMask,uint256 chainId,uint256 revision,uint256 deadline)"
     );
 
     // ============ Encrypted Identity Attributes ============
@@ -60,17 +63,31 @@ contract IdentityRegistry is
 
     // ============ Per-Attribute Grants ============
 
-    /// @dev keccak256(user, grantee) => attribute bitmask
+    /// @dev keccak256(user, grantee, revision) — grants scoped to attestation revision
     mapping(bytes32 grantKey => uint8 mask) private attributeGrants;
 
     // ============ Verification Results ============
 
     mapping(bytes32 key => ebool result) private verificationResults;
 
+    // ============ Revision & Policy ============
+
+    /// @dev Per-user revision counter. Increments on every revocation.
+    ///      Grants and cache keys are scoped by revision.
+    mapping(address user => uint256 rev) public revisions;
+
+    /// @dev Authorized policy contracts that may call compliance predicates.
+    mapping(address policy => bool authorized) public authorizedPolicies;
+
     // ============ Upgrade Safety ============
 
     /// @dev Reserved storage gap for future upgrades
-    uint256[50] private __gap;
+    uint256[48] private __gap;
+
+    // ============ Events ============
+
+    /// @notice Emitted when a policy contract is authorized or deauthorized
+    event PolicyUpdated(address indexed policy, bool status);
 
     // ============ Modifiers ============
 
@@ -81,6 +98,11 @@ contract IdentityRegistry is
 
     modifier whenAttested(address user) {
         if (currentAttestationId[user] == 0) revert NotAttested();
+        _;
+    }
+
+    modifier onlyAuthorizedPolicy() {
+        if (!authorizedPolicies[msg.sender]) revert UnauthorizedPolicy();
         _;
     }
 
@@ -108,22 +130,44 @@ contract IdentityRegistry is
         emit RegistrarUpdated(initialOwner, true);
     }
 
-    // ============ Attestation with EIP-712 Permit ============
+    // ============ Attestation with EIP-712 Permit + Consent ============
 
-    /// @inheritdoc IIdentityRegistry
+    /// @notice Attest identity with registrar permit and user consent
+    ///      If already attested, increments revision and overwrites (re-attestation).
+    /// @param permit Registrar-signed permit with plaintext values
+    /// @param consentV User consent EIP-712 signature v component (0 to skip)
+    /// @param consentR User consent EIP-712 signature r component
+    /// @param consentS User consent EIP-712 signature s component
+    /// @param consentAttributeMask Attribute bitmask the user consented to disclose
+    /// @param consentDeadline Consent expiry timestamp
+    /// @dev Consent is verified against the target attestation revision:
+    ///      the current revision for first attestation, or current revision + 1 for re-attestation.
     function attestWithPermit(
         AttestPermitData calldata permit,
+        uint8 consentV,
+        bytes32 consentR,
+        bytes32 consentS,
+        uint8 consentAttributeMask,
+        uint256 consentDeadline,
         externalEuint8 encBirthYearOffset,
         externalEuint16 encCountryCode,
         externalEuint8 encComplianceLevel,
         externalEbool encIsBlacklisted,
         bytes calldata inputProof
     ) external {
-        if (currentAttestationId[msg.sender] != 0) revert AlreadyAttested();
         if (block.timestamp > permit.deadline) revert PermitExpired();
+
+        uint256 targetRevision = _getTargetRevision(msg.sender);
 
         // Verify registrar signature over plaintext values
         _verifyPermit(permit);
+
+        // Verify user consent if provided (v != 0 signals consent is present)
+        if (consentV != 0) {
+            _verifyConsent(consentV, consentR, consentS, consentAttributeMask, consentDeadline, targetRevision);
+        }
+
+        revisions[msg.sender] = targetRevision;
 
         // Convert and store FHE-encrypted values
         _storeEncryptedValues(encBirthYearOffset, encCountryCode, encComplianceLevel, encIsBlacklisted, inputProof);
@@ -136,6 +180,15 @@ contract IdentityRegistry is
         policyVersions[msg.sender] = permit.policyVersion;
 
         emit IdentityAttested(msg.sender);
+    }
+
+    /// @dev Returns the revision that a new attestation will occupy.
+    function _getTargetRevision(address user) internal view returns (uint256) {
+        uint256 currentRevision = revisions[user];
+        if (currentAttestationId[user] != 0) {
+            return currentRevision + 1;
+        }
+        return currentRevision;
     }
 
     /// @dev Verify the registrar's EIP-712 signature and increment nonce
@@ -160,6 +213,32 @@ contract IdentityRegistry is
         if (!registrars[signer]) revert InvalidPermit();
 
         nonces[msg.sender] = currentNonce + 1;
+    }
+
+    /// @dev Verify the user's EIP-712 consent signature
+    function _verifyConsent(
+        uint8 v,
+        bytes32 r,
+        bytes32 s,
+        uint8 attributeMask,
+        uint256 deadline,
+        uint256 revision
+    ) internal view {
+        if (block.timestamp > deadline) revert PermitExpired();
+
+        bytes32 structHash = keccak256(
+            abi.encode(
+                CONSENT_TYPEHASH,
+                msg.sender,
+                attributeMask,
+                block.chainid,
+                revision,
+                deadline
+            )
+        );
+
+        address signer = ECDSA.recover(_hashTypedDataV4(structHash), v, r, s);
+        if (signer != msg.sender) revert InvalidPermit();
     }
 
     /// @dev Convert external encrypted inputs, store, and grant ACL permissions
@@ -205,6 +284,10 @@ contract IdentityRegistry is
     function _revokeIdentity(address user) internal {
         if (currentAttestationId[user] == 0) revert NotAttested();
 
+        // Increment revision and nonce — invalidates grants, cached results, and any pending permits
+        revisions[user]++;
+        nonces[user]++;
+
         // Zero out encrypted values (new ciphertext handles)
         birthYearOffsets[user] = FHE.asEuint8(0);
         countryCodes[user] = FHE.asEuint16(0);
@@ -220,7 +303,7 @@ contract IdentityRegistry is
         emit IdentityRevoked(user);
     }
 
-    // ============ Per-Attribute Access Grants ============
+    // ============ Revision-Scoped Grants ============
 
     /// @inheritdoc IIdentityRegistry
     function grantAttributeAccess(
@@ -230,7 +313,8 @@ contract IdentityRegistry is
     ) external whenAttested(msg.sender) {
         if (grantee == address(0)) revert ZeroAddress();
 
-        bytes32 grantKey = keccak256(abi.encodePacked(msg.sender, grantee));
+        // Grants are scoped to the current attestation revision
+        bytes32 grantKey = keccak256(abi.encodePacked(msg.sender, grantee, revisions[msg.sender]));
         attributeGrants[grantKey] |= attributeMask;
 
         // Grant FHE ACL per selected attribute
@@ -254,7 +338,7 @@ contract IdentityRegistry is
     function grantAccessTo(address grantee) external whenAttested(msg.sender) {
         if (grantee == address(0)) revert ZeroAddress();
 
-        bytes32 grantKey = keccak256(abi.encodePacked(msg.sender, grantee));
+        bytes32 grantKey = keccak256(abi.encodePacked(msg.sender, grantee, revisions[msg.sender]));
         attributeGrants[grantKey] = ATTR_ALL;
 
         FHE.allow(birthYearOffsets[msg.sender], grantee);
@@ -265,20 +349,20 @@ contract IdentityRegistry is
         emit AttributeAccessGranted(msg.sender, grantee, ATTR_ALL, Purpose.COMPLIANCE_CHECK);
     }
 
-    // ============ Compliance Checks (x402 Oracle Surface) ============
+    // ============ Policy-Authorized Compliance Checks ============
 
     /// @inheritdoc IIdentityRegistry
     function checkCompliance(
         address user,
         uint8 minLevel
-    ) external whenAttested(user) returns (ebool) {
+    ) external whenAttested(user) onlyAuthorizedPolicy returns (ebool) {
         euint8 encMinLevel = FHE.asEuint8(minLevel);
         ebool meetsLevel = FHE.ge(complianceLevels[user], encMinLevel);
         ebool notBlocked = FHE.not(blacklistStatuses[user]);
         ebool result = FHE.and(meetsLevel, notBlocked);
 
-        // Store result and grant permissions
-        bytes32 key = keccak256(abi.encodePacked(user, "compliance", minLevel));
+        // Cache key includes revision to prevent stale results
+        bytes32 key = keccak256(abi.encodePacked(user, "compliance", minLevel, revisions[user]));
         verificationResults[key] = result;
         FHE.allowThis(result);
         FHE.allow(result, msg.sender);
@@ -290,10 +374,10 @@ contract IdentityRegistry is
     function hasMinComplianceLevel(
         address user,
         uint8 minLevel
-    ) external whenAttested(user) returns (ebool) {
+    ) external whenAttested(user) onlyAuthorizedPolicy returns (ebool) {
         ebool result = FHE.ge(complianceLevels[user], FHE.asEuint8(minLevel));
 
-        bytes32 key = keccak256(abi.encodePacked(user, "minLevel", minLevel));
+        bytes32 key = keccak256(abi.encodePacked(user, "minLevel", minLevel, revisions[user]));
         verificationResults[key] = result;
         FHE.allowThis(result);
         FHE.allow(result, msg.sender);
@@ -305,10 +389,10 @@ contract IdentityRegistry is
     function isFromCountry(
         address user,
         uint16 country
-    ) external whenAttested(user) returns (ebool) {
+    ) external whenAttested(user) onlyAuthorizedPolicy returns (ebool) {
         ebool result = FHE.eq(countryCodes[user], FHE.asEuint16(country));
 
-        bytes32 key = keccak256(abi.encodePacked(user, "country", country));
+        bytes32 key = keccak256(abi.encodePacked(user, "country", country, revisions[user]));
         verificationResults[key] = result;
         FHE.allowThis(result);
         FHE.allow(result, msg.sender);
@@ -317,10 +401,10 @@ contract IdentityRegistry is
     }
 
     /// @inheritdoc IIdentityRegistry
-    function isNotBlacklisted(address user) external whenAttested(user) returns (ebool) {
+    function isNotBlacklisted(address user) external whenAttested(user) onlyAuthorizedPolicy returns (ebool) {
         ebool result = FHE.not(blacklistStatuses[user]);
 
-        bytes32 key = keccak256(abi.encodePacked(user, "notBlacklisted"));
+        bytes32 key = keccak256(abi.encodePacked(user, "notBlacklisted", revisions[user]));
         verificationResults[key] = result;
         FHE.allowThis(result);
         FHE.allow(result, msg.sender);
@@ -371,9 +455,9 @@ contract IdentityRegistry is
         return policyVersions[user];
     }
 
-    /// @inheritdoc IIdentityRegistry
+    /// @dev Grant lookup includes the current revision
     function getGrantedAttributes(address user, address grantee) external view returns (uint8) {
-        return attributeGrants[keccak256(abi.encodePacked(user, grantee))];
+        return attributeGrants[keccak256(abi.encodePacked(user, grantee, revisions[user]))];
     }
 
     /// @inheritdoc IIdentityRegistry
@@ -386,12 +470,17 @@ contract IdentityRegistry is
     // ============ Admin ============
 
     /// @notice Add or remove a registrar
-    /// @param registrar Address to update
-    /// @param status true to add, false to remove
     function setRegistrar(address registrar, bool status) external onlyOwner {
         if (registrar == address(0)) revert ZeroAddress();
         registrars[registrar] = status;
         emit RegistrarUpdated(registrar, status);
+    }
+
+    /// @notice Authorize or deauthorize a policy contract for predicate calls
+    function setAuthorizedPolicy(address policy, bool status) external onlyOwner {
+        if (policy == address(0)) revert ZeroAddress();
+        authorizedPolicies[policy] = status;
+        emit PolicyUpdated(policy, status);
     }
 
     // ============ UUPS ============

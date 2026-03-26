@@ -63,11 +63,11 @@ interface IIdentityRegistry {
     /// @notice Thrown when querying a user without attestation
     error NotAttested();
 
-    /// @notice Thrown when attempting to attest an already-attested user
-    error AlreadyAttested();
-
-    /// @notice Thrown when the EIP-712 permit signature is invalid
+    /// @notice Thrown when the EIP-712 permit or consent signature is invalid
     error InvalidPermit();
+
+    /// @notice Thrown when a non-authorized contract calls a compliance predicate
+    error UnauthorizedPolicy();
 
     /// @notice Thrown when the permit deadline has passed
     error PermitExpired();
@@ -80,18 +80,19 @@ interface IIdentityRegistry {
 
     // ============ Attestation with Permit ============
 
-    /// @notice Attest identity using a registrar-signed EIP-712 permit
-    /// @dev The user submits this transaction with their own FHE-encrypted values.
-    ///      The contract verifies the registrar's signature over the plaintext values
-    ///      and stores the user's encrypted values. Nonce is auto-incremented.
-    /// @param permit Registrar-signed permit containing plaintext values + ECDSA signature
-    /// @param encBirthYearOffset FHE-encrypted birth year offset
-    /// @param encCountryCode FHE-encrypted country code
-    /// @param encComplianceLevel FHE-encrypted compliance level
-    /// @param encIsBlacklisted FHE-encrypted blacklist status
-    /// @param inputProof FHE input proof binding encrypted values to (contract, user)
+    /// @notice Attest identity with registrar permit and optional user consent
+    /// @dev v3: allows re-attestation (increments revision). Consent signature is
+    ///      optional (set consentV=0 to skip). When provided, the contract verifies
+    ///      the user signed a consent covering attributeMask, chainId, and the
+    ///      target attestation revision (current revision for first attestation,
+    ///      current revision + 1 for re-attestation).
     function attestWithPermit(
         AttestPermitData calldata permit,
+        uint8 consentV,
+        bytes32 consentR,
+        bytes32 consentS,
+        uint8 consentAttributeMask,
+        uint256 consentDeadline,
         externalEuint8 encBirthYearOffset,
         externalEuint16 encCountryCode,
         externalEuint8 encComplianceLevel,
@@ -186,8 +187,14 @@ interface IIdentityRegistry {
     /// @notice Check if an address is an authorized registrar
     function registrars(address registrar) external view returns (bool);
 
+    /// @notice Get the current attestation revision for a user
+    function revisions(address user) external view returns (uint256);
+
+    /// @notice Check if a contract is authorized to call compliance predicates
+    function authorizedPolicies(address policy) external view returns (bool);
+
     /// @notice Get a previously stored verification result
-    /// @param key The result key (keccak256 of check parameters)
+    /// @param key The result key (keccak256 of check parameters + revision)
     function getVerificationResult(bytes32 key) external view returns (ebool);
 
     // ============ Constants ============

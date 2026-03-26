@@ -24,6 +24,16 @@ const PERMIT_TYPES = {
   ],
 };
 
+const CONSENT_TYPES = {
+  UserConsent: [
+    { name: "user", type: "address" },
+    { name: "attributeMask", type: "uint8" },
+    { name: "chainId", type: "uint256" },
+    { name: "revision", type: "uint256" },
+    { name: "deadline", type: "uint256" },
+  ],
+};
+
 describe("IdentityRegistry", () => {
   let registry: Awaited<ReturnType<typeof deployProxy>>;
   let proxyAddress: string;
@@ -125,12 +135,41 @@ describe("IdentityRegistry", () => {
       .connect(userSigner)
       .attestWithPermit(
         permit,
+        0,
+        hre.ethers.ZeroHash,
+        hre.ethers.ZeroHash,
+        0,
+        0,
         encryptedInput.handles[0],
         encryptedInput.handles[1],
         encryptedInput.handles[2],
         encryptedInput.handles[3],
         encryptedInput.inputProof,
       );
+  }
+
+  async function signConsent(
+    signer: HardhatEthersSigner,
+    attributeMask: number,
+    revision: bigint,
+    deadline?: number,
+  ) {
+    const chainId = (await hre.ethers.provider.getNetwork()).chainId;
+    const block = await hre.ethers.provider.getBlock("latest");
+    const dl = deadline ?? (block?.timestamp ?? 0) + 3600;
+
+    const message = {
+      user: signer.address,
+      attributeMask,
+      chainId,
+      revision,
+      deadline: dl,
+    };
+
+    const signature = await signer.signTypedData(domain, CONSENT_TYPES, message);
+    const { v, r, s } = hre.ethers.Signature.from(signature);
+
+    return { v, r, s, attributeMask, deadline: dl };
   }
 
   before(async () => {
@@ -151,6 +190,11 @@ describe("IdentityRegistry", () => {
 
     // Add registrar
     await registry.connect(owner).setRegistrar(registrar.address, true);
+
+    // Authorize test signers as policy contracts for compliance check tests
+    await registry.connect(owner).setAuthorizedPolicy(user1.address, true);
+    await registry.connect(owner).setAuthorizedPolicy(user2.address, true);
+    await registry.connect(owner).setAuthorizedPolicy(verifier.address, true);
   });
 
   describe("Initialization", () => {
@@ -212,6 +256,11 @@ describe("IdentityRegistry", () => {
           .connect(user2)
           .attestWithPermit(
             permit,
+            0,
+            hre.ethers.ZeroHash,
+            hre.ethers.ZeroHash,
+            0,
+            0,
             encryptedInput.handles[0],
             encryptedInput.handles[1],
             encryptedInput.handles[2],
@@ -232,7 +281,12 @@ describe("IdentityRegistry", () => {
       expect(await registry.nonces(user2.address)).to.equal(1n);
     });
 
-    it("should revert on already-attested user", async () => {
+    it("should allow re-attestation and increment revision", async () => {
+      // Ensure user is attested first
+      if (!(await registry.isAttested(user1.address))) {
+        await attestUser(user1, 90, 840, 3, false);
+      }
+      const revBefore = await registry.revisions(user1.address);
       const { permit } = await signPermit(registrar, user1.address, 90, 840, 3, false);
       const encrypted = hre.fhevm.createEncryptedInput(proxyAddress, user1.address);
       encrypted.add8(90);
@@ -241,18 +295,24 @@ describe("IdentityRegistry", () => {
       encrypted.addBool(false);
       const encryptedInput = await encrypted.encrypt();
 
-      await expect(
-        registry
-          .connect(user1)
-          .attestWithPermit(
-            permit,
-            encryptedInput.handles[0],
-            encryptedInput.handles[1],
-            encryptedInput.handles[2],
-            encryptedInput.handles[3],
-            encryptedInput.inputProof,
-          ),
-      ).to.be.revertedWithCustomError(registry, "AlreadyAttested");
+      await registry
+        .connect(user1)
+        .attestWithPermit(
+          permit,
+          0,
+          hre.ethers.ZeroHash,
+          hre.ethers.ZeroHash,
+          0,
+          0,
+          encryptedInput.handles[0],
+          encryptedInput.handles[1],
+          encryptedInput.handles[2],
+          encryptedInput.handles[3],
+          encryptedInput.inputProof,
+        );
+
+      expect(await registry.revisions(user1.address)).to.equal(revBefore + 1n);
+      expect(await registry.isAttested(user1.address)).to.be.true;
     });
 
     it("should revert on expired permit", async () => {
@@ -281,6 +341,11 @@ describe("IdentityRegistry", () => {
           .connect(nonAttested)
           .attestWithPermit(
             permit,
+            0,
+            hre.ethers.ZeroHash,
+            hre.ethers.ZeroHash,
+            0,
+            0,
             encryptedInput.handles[0],
             encryptedInput.handles[1],
             encryptedInput.handles[2],
@@ -306,6 +371,11 @@ describe("IdentityRegistry", () => {
           .connect(nonAttested)
           .attestWithPermit(
             permit,
+            0,
+            hre.ethers.ZeroHash,
+            hre.ethers.ZeroHash,
+            0,
+            0,
             encryptedInput.handles[0],
             encryptedInput.handles[1],
             encryptedInput.handles[2],
@@ -321,10 +391,80 @@ describe("IdentityRegistry", () => {
       await attestUser(nonAttested, 90, 840, 3, false);
       // Revoke to allow re-attestation attempt
       await registry.connect(registrar).revokeIdentityFor(nonAttested.address);
-      // Try with old nonce (signPermit reads current nonce, which has been incremented)
-      // This should work since signPermit reads the new nonce
+      // Re-attestation must use a fresh nonce because revocation invalidates pending permits
       await attestUser(nonAttested, 90, 840, 3, false);
-      expect(await registry.nonces(nonAttested.address)).to.equal(2n);
+      expect(await registry.nonces(nonAttested.address)).to.equal(3n);
+    });
+
+    it("should invalidate a signed permit when identity is revoked before submission", async () => {
+      const revokable = (await hre.ethers.getSigners())[9];
+      await attestUser(revokable, 90, 840, 3, false);
+
+      const { permit } = await signPermit(registrar, revokable.address, 91, 840, 4, false);
+      const encrypted = hre.fhevm.createEncryptedInput(proxyAddress, revokable.address);
+      encrypted.add8(91);
+      encrypted.add16(840);
+      encrypted.add8(4);
+      encrypted.addBool(false);
+      const encryptedInput = await encrypted.encrypt();
+
+      await registry.connect(registrar).revokeIdentityFor(revokable.address);
+
+      await expect(
+        registry
+          .connect(revokable)
+          .attestWithPermit(
+            permit,
+            0,
+            hre.ethers.ZeroHash,
+            hre.ethers.ZeroHash,
+            0,
+            0,
+            encryptedInput.handles[0],
+            encryptedInput.handles[1],
+            encryptedInput.handles[2],
+            encryptedInput.handles[3],
+            encryptedInput.inputProof,
+          ),
+      ).to.be.revertedWithCustomError(registry, "InvalidPermit");
+
+      expect(await registry.nonces(revokable.address)).to.equal(2n);
+    });
+
+    it("should accept consent signed for the target revision on re-attestation", async () => {
+      const consentUser = (await hre.ethers.getSigners())[10];
+      await attestUser(consentUser, 90, 840, 3, false);
+
+      const currentRevision = await registry.revisions(consentUser.address);
+      const targetRevision = currentRevision + 1n;
+      const { permit } = await signPermit(registrar, consentUser.address, 92, 840, 4, false);
+      const consent = await signConsent(consentUser, 0x0f, targetRevision);
+
+      const encrypted = hre.fhevm.createEncryptedInput(proxyAddress, consentUser.address);
+      encrypted.add8(92);
+      encrypted.add16(840);
+      encrypted.add8(4);
+      encrypted.addBool(false);
+      const encryptedInput = await encrypted.encrypt();
+
+      await registry
+        .connect(consentUser)
+        .attestWithPermit(
+          permit,
+          consent.v,
+          consent.r,
+          consent.s,
+          consent.attributeMask,
+          consent.deadline,
+          encryptedInput.handles[0],
+          encryptedInput.handles[1],
+          encryptedInput.handles[2],
+          encryptedInput.handles[3],
+          encryptedInput.inputProof,
+        );
+
+      expect(await registry.revisions(consentUser.address)).to.equal(targetRevision);
+      expect(await registry.nonces(consentUser.address)).to.equal(2n);
     });
   });
 
@@ -416,12 +556,23 @@ describe("IdentityRegistry", () => {
   });
 
   describe("Compliance Checks (x402 Surface)", () => {
+    before(async () => {
+      // Ensure user1 is attested for compliance tests
+      if (!(await registry.isAttested(user1.address))) {
+        await attestUser(user1, 90, 840, 3, false);
+      }
+    });
+
     it("should pass compliance check when level meets requirement", async () => {
       // user1 has compliance level 3, check for minLevel 2
       await registry.connect(user1).checkCompliance(user1.address, 2);
 
+      const revision = await registry.revisions(user1.address);
       const key = hre.ethers.keccak256(
-        hre.ethers.solidityPacked(["address", "string", "uint8"], [user1.address, "compliance", 2]),
+        hre.ethers.solidityPacked(
+          ["address", "string", "uint8", "uint256"],
+          [user1.address, "compliance", 2, revision],
+        ),
       );
       const result = await registry.connect(user1).getVerificationResult(key);
       const decrypted = await hre.fhevm.userDecryptEbool(result, proxyAddress, user1);
@@ -432,8 +583,12 @@ describe("IdentityRegistry", () => {
       // user1 has compliance level 3, check for minLevel 5
       await registry.connect(user1).checkCompliance(user1.address, 5);
 
+      const revision = await registry.revisions(user1.address);
       const key = hre.ethers.keccak256(
-        hre.ethers.solidityPacked(["address", "string", "uint8"], [user1.address, "compliance", 5]),
+        hre.ethers.solidityPacked(
+          ["address", "string", "uint8", "uint256"],
+          [user1.address, "compliance", 5, revision],
+        ),
       );
       const result = await registry.connect(user1).getVerificationResult(key);
       const decrypted = await hre.fhevm.userDecryptEbool(result, proxyAddress, user1);
@@ -442,8 +597,12 @@ describe("IdentityRegistry", () => {
 
     it("should check hasMinComplianceLevel individually", async () => {
       await registry.connect(user1).hasMinComplianceLevel(user1.address, 3);
+      const revision = await registry.revisions(user1.address);
       const key = hre.ethers.keccak256(
-        hre.ethers.solidityPacked(["address", "string", "uint8"], [user1.address, "minLevel", 3]),
+        hre.ethers.solidityPacked(
+          ["address", "string", "uint8", "uint256"],
+          [user1.address, "minLevel", 3, revision],
+        ),
       );
       const result = await registry.connect(user1).getVerificationResult(key);
       const decrypted = await hre.fhevm.userDecryptEbool(result, proxyAddress, user1);
@@ -452,8 +611,12 @@ describe("IdentityRegistry", () => {
 
     it("should check isNotBlacklisted", async () => {
       await registry.connect(user1).isNotBlacklisted(user1.address);
+      const revision = await registry.revisions(user1.address);
       const key = hre.ethers.keccak256(
-        hre.ethers.solidityPacked(["address", "string"], [user1.address, "notBlacklisted"]),
+        hre.ethers.solidityPacked(
+          ["address", "string", "uint256"],
+          [user1.address, "notBlacklisted", revision],
+        ),
       );
       const result = await registry.connect(user1).getVerificationResult(key);
       const decrypted = await hre.fhevm.userDecryptEbool(result, proxyAddress, user1);
