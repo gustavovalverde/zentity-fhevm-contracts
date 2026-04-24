@@ -1,160 +1,141 @@
-# @zentity/fhevm-contracts
+# @zentity/contracts
 
-fhEVM smart contracts for privacy-preserving identity attestations.
+Smart contracts, ABIs, deployment manifests, and viem helpers for Zentity's on-chain compliance surfaces.
 
 ## Overview
 
-This package provides Solidity contracts using Zama's fhEVM:
+This package contains two contract families:
 
-- **IdentityRegistry** — encrypted identity attributes (birth year offset, country, compliance (KYC) level, blacklist)
-- **ComplianceRules** — encrypted compliance checks with cached results
-- **CompliantERC20** — demo token enforcing compliance on transfers
+- **fhEVM contracts on Ethereum Sepolia**: `IdentityRegistry`, `ComplianceRules`, and `CompliantERC20` store encrypted identity attributes and evaluate encrypted compliance predicates.
+- **Base mirror contracts on Base Sepolia**: `IdentityRegistryMirror` stores only public, level-aware compliance state for low-latency `isCompliant(address,uint8)` reads.
+
+The mirror is intentionally plaintext and narrow. It stores no PII, proof hashes, FHE ciphertext handles, or commitments.
+For the architecture boundary and production rationale, see [Production Attestation Architecture](docs/production-attestation-architecture.md#public-read-mirrors).
 
 ## Installation
 
 ```bash
-npm install @zentity/fhevm-contracts
+npm install @zentity/contracts
 ```
 
-## Quickstart (local)
+## Quickstart
+
+```ts
+import {
+  chainIdByNetwork,
+  complianceLevels,
+  getIdentityRegistryMirror,
+  identityRegistryMirrorAbi,
+} from "@zentity/contracts";
+import { createPublicClient, http } from "viem";
+import { baseSepolia } from "viem/chains";
+
+const client = createPublicClient({
+  chain: baseSepolia,
+  transport: http("https://sepolia.base.org"),
+});
+
+const mirror = getIdentityRegistryMirror(client, {
+  network: chainIdByNetwork.baseSepolia,
+});
+
+const compliant = await mirror.read.isCompliant([
+  "0x0000000000000000000000000000000000000001",
+  complianceLevels.basic,
+]);
+```
+
+Direct ABI imports use lower-camel names:
+
+```ts
+import { identityRegistryAbi, identityRegistryMirrorAbi } from "@zentity/contracts";
+import { identityRegistryMirrorAbi as mirrorAbi } from "@zentity/contracts/abi";
+```
+
+## Networks
+
+| Network | Chain ID | Contract family | Notes |
+|---|---:|---|---|
+| Hardhat | `31337` | fhEVM mocks | Local development |
+| Ethereum Sepolia | `11155111` | fhEVM | Encrypted registry and compliance checks |
+| Base Sepolia | `84532` | Mirror | Plaintext `IdentityRegistryMirror` |
+
+## Development
 
 ```bash
 bun install
 bun run compile
 bun run test:mocked
+bun run typecheck
+```
 
-# terminal 1
+To validate deployed artifacts against a running local node:
+
+```bash
 bunx hardhat node
-
-# terminal 2
 bun run deploy:local
-bun run print:deployments localhost --env
+bun run validate:local
 ```
 
-## Quickstart (Sepolia)
+## Deploy
 
-1) Set env values in `.env.local`:
-
-```
-FHEVM_RPC_URL=...
-FHEVM_PROVIDER_ID=zama # zama = Zama relayer SDK
-PRIVATE_KEY=0x...
-```
-
-Tip: keep shared defaults in `.env` and secrets in `.env.local`.
-See `docs/deployment.md` for the full env-file behavior.
-
-2) Deploy and print addresses:
+### Ethereum Sepolia fhEVM contracts
 
 ```bash
+FHEVM_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com \
+FHEVM_PRIVATE_KEY=0x... \
 bun run deploy:sepolia
+```
+
+Print app env values:
+
+```bash
 bun run print:deployments sepolia --env
 ```
 
-3) Run integration smoke tests:
+### Base Sepolia mirror
 
 ```bash
-bun run test:sepolia
+BASE_SEPOLIA_RPC_URL=https://sepolia.base.org \
+BASE_SEPOLIA_PRIVATE_KEY=0x... \
+BASE_SEPOLIA_REGISTRAR_ADDRESS=0x... \
+bun run deploy:base-sepolia
 ```
 
-## Usage
+`BASE_SEPOLIA_PRIVATE_KEY` deploys the proxy and owns the initial upgrade/admin role.
+`BASE_SEPOLIA_REGISTRAR_ADDRESS` is the separate writer identity that records
+mirrored compliance levels.
+The deploy script validates the deployed proxy, bytecode, owner, registrar, and
+level constants before it exits.
 
-Minimal setup (addresses + ABI):
-
-```typescript
-import {
-  getContractAddresses,
-  getAbi,
-} from "@zentity/fhevm-contracts";
-
-const addresses = getContractAddresses("hardhat");
-const identityRegistry = new ethers.Contract(
-  addresses.IdentityRegistry,
-  getAbi("IdentityRegistry"),
-  signer
-);
-```
-
-Direct ABI imports:
-
-```typescript
-import { IdentityRegistryABI } from "@zentity/fhevm-contracts";
-// or
-import { IdentityRegistryABI } from "@zentity/fhevm-contracts/abi";
-```
-
-Address helpers:
-
-```typescript
-import {
-  getContractAddresses,
-  resolveContractAddresses,
-  getNetworkName,
-  hasDeployment,
-  CHAIN_ID_BY_NETWORK,
-} from "@zentity/fhevm-contracts";
-
-const network = getNetworkName(31337, "hardhat");
-if (!hasDeployment(network)) throw new Error("Missing deployments");
-
-const addresses = getContractAddresses(network, {
-  overrides: { ComplianceRules: "0x..." },
-});
-
-// Sepolia or other networks without bundled deployments:
-const sepoliaAddresses = resolveContractAddresses("sepolia", {
-  overrides: {
-    IdentityRegistry: "0x...",
-    ComplianceRules: "0x...",
-    CompliantERC20: "0x...",
-  },
-});
-```
-
-## Addresses & deployments
-
-Deployments are stored in `deployments/<network>`. Use the helper script to
-print them as JSON or env-style output:
+After deployment, configure Zentity with:
 
 ```bash
-bun run print:deployments
-bun run print:deployments sepolia --env
+BASE_SEPOLIA_IDENTITY_REGISTRY_MIRROR=0x...
+BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
+BASE_SEPOLIA_REGISTRAR_PRIVATE_KEY=0x...
+NEXT_PUBLIC_ENABLE_BASE_SEPOLIA=true
 ```
 
-## Networks
+`BASE_SEPOLIA_REGISTRAR_PRIVATE_KEY` must correspond to the registrar address
+configured during deployment. The deployed Base Sepolia manifest is shipped as
+`@zentity/contracts/deployments/baseSepolia`, so application code should use the
+package manifest by default and reserve env address overrides for alternate
+deployments.
 
-| Network | Chain ID | RPC |
-|---------|----------|-----|
-| Sepolia | 11155111 | https://ethereum-sepolia-rpc.publicnode.com |
-| Localhost | 31337 | http://127.0.0.1:8545 |
+## Public Package Surface
 
-Note: only networks with a deployment manifest in `deployments/<network>` are
-available via `getContractAddresses()` out of the box.
+The stable TypeScript surface is:
 
-## Ownership & admin safety
+- `identityRegistryAbi`, `identityRegistryMirrorAbi`, `complianceRulesAbi`, `compliantErc20Abi`
+- `deployments`, keyed by chain id
+- `chainIdByNetwork`
+- `getFhevmContractAddresses()`
+- `getIdentityRegistryMirrorAddress()`
+- `getIdentityRegistry()`, `getIdentityRegistryMirror()`
+- `attestedOnlyLevel`, `complianceLevels`
 
-Admin-managed contracts use **two-step ownership transfer**:
-`transferOwnership(newOwner)` → `acceptOwnership()`.
-
-See `docs/guide.md` for details and best practices.
-
-## Documentation
-
-- `docs/guide.md` (deployment, testing, faucets, ownership)
-- `docs/architecture.md` (contract flow overview)
-- `CONTRIBUTING.md` (pre-commit checklist, changesets, deployments)
-
-## Development
-
-This repo uses Bun by default. If you prefer npm, replace `bun run <script>`
-with `npm run <script>`.
-
-Common scripts:
-- `bun run compile`
-- `bun run test:mocked`
-- `bun run test`
-- `bun run deploy:local`
-- `bun run deploy:sepolia`
+Generated TypeChain sources and Hardhat deployment internals are not part of the public package API.
 
 ## License
 

@@ -1,9 +1,11 @@
-const IdentityRegistryABI = require("./IdentityRegistry.json");
-const ComplianceRulesABI = require("./ComplianceRules.json");
-const CompliantERC20ABI = require("./CompliantERC20.json");
+const identityRegistryAbi = require("./IdentityRegistry.json");
+const complianceRulesAbi = require("./ComplianceRules.json");
+const compliantErc20Abi = require("./CompliantERC20.json");
+const identityRegistryMirrorAbi = require("./IdentityRegistryMirror.json");
 
 module.exports = {
-  IdentityRegistryABI,
-  ComplianceRulesABI,
-  CompliantERC20ABI,
+  identityRegistryAbi,
+  complianceRulesAbi,
+  compliantErc20Abi,
+  identityRegistryMirrorAbi,
 };

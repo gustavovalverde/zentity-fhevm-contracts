@@ -1,5 +1,6 @@
+import { TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS } from "hardhat/builtin-tasks/task-names";
 import type { HardhatUserConfig } from "hardhat/config";
-import "@fhevm/hardhat-plugin";
+import { subtask } from "hardhat/config";
 import "@nomicfoundation/hardhat-chai-matchers";
 import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-deploy";
@@ -29,16 +30,22 @@ for (const envFile of envFiles) {
   }
 }
 
-const MNEMONIC =
-  process.env.MNEMONIC || "test test test test test test test test test test test junk";
-const FHEVM_PRIVATE_KEY =
-  process.env.FHEVM_PRIVATE_KEY ??
-  "0x0000000000000000000000000000000000000000000000000000000000000001";
-const FHEVM_RPC_URL = process.env.FHEVM_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com";
 const BASE_SEPOLIA_RPC_URL = process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org";
 const BASE_SEPOLIA_PRIVATE_KEY =
   process.env.BASE_SEPOLIA_PRIVATE_KEY ??
   "0x0000000000000000000000000000000000000000000000000000000000000001";
+
+const BASE_DEPLOYMENT_SOURCE_PATHS = new Set([
+  path.normalize(path.join(process.cwd(), "contracts/core/IdentityRegistryMirror.sol")),
+  path.normalize(path.join(process.cwd(), "contracts/proxy/ERC1967Proxy.sol")),
+]);
+
+subtask(TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS).setAction(async (_taskArgs, _hre, runSuper) => {
+  const sourcePaths = (await runSuper()) as string[];
+  return sourcePaths.filter((sourcePath) =>
+    BASE_DEPLOYMENT_SOURCE_PATHS.has(path.normalize(sourcePath)),
+  );
+});
 
 const config: HardhatUserConfig = {
   namedAccounts: {
@@ -60,20 +67,6 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
-    hardhat: {
-      accounts: {
-        mnemonic: MNEMONIC,
-      },
-      chainId: 31337,
-    },
-    localhost: {
-      url: "http://127.0.0.1:8545",
-    },
-    sepolia: {
-      url: FHEVM_RPC_URL,
-      accounts: [FHEVM_PRIVATE_KEY],
-      chainId: 11155111,
-    },
     baseSepolia: {
       url: BASE_SEPOLIA_RPC_URL,
       accounts: [BASE_SEPOLIA_PRIVATE_KEY],

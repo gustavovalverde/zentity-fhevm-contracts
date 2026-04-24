@@ -1,15 +1,16 @@
 {
-  "name": "@zentity/fhevm-contracts",
-  "version": "0.5.0",
-  "description": "fhEVM smart contracts for Zentity privacy-preserving identity attestations",
+  "name": "@zentity/contracts",
+  "version": "0.6.0",
+  "description": "Zentity smart contracts, ABIs, deployments, and typed helpers",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "abi/",
-    "contracts/",
-    "deployments/",
-    "dist/",
-    "typechain-types/"
+    "contracts/interfaces/",
+    "deployments/baseSepolia/addresses.json",
+    "deployments/hardhat/addresses.json",
+    "deployments/sepolia/addresses.json",
+    "dist/"
   ],
   "publishConfig": {
     "access": "public"
@@ -24,10 +25,12 @@
       "default": "./abi/index.js"
     },
     "./abi/IdentityRegistry": "./abi/IdentityRegistry.json",
+    "./abi/IdentityRegistryMirror": "./abi/IdentityRegistryMirror.json",
     "./abi/ComplianceRules": "./abi/ComplianceRules.json",
     "./abi/CompliantERC20": "./abi/CompliantERC20.json",
-    "./deployments/*": "./deployments/*",
-    "./typechain-types": "./typechain-types/index.ts"
+    "./deployments/baseSepolia": "./deployments/baseSepolia/addresses.json",
+    "./deployments/hardhat": "./deployments/hardhat/addresses.json",
+    "./deployments/sepolia": "./deployments/sepolia/addresses.json"
   },
   "scripts": {
     "compile": "hardhat compile",
@@ -46,8 +49,12 @@
     "verify": "bun run lint && bun run lint:sol && bun run compile && bun run typecheck",
     "verify:full": "bun run verify && bun run test:mocked",
     "deploy:mocked": "hardhat deploy --network hardhat",
-    "deploy:local": "hardhat deploy --network localhost",
-    "deploy:sepolia": "hardhat deploy --network sepolia",
+    "deploy:local": "hardhat deploy --network localhost && DEPLOYMENT_VALIDATION_WRITES=true hardhat run scripts/validate-deployments.ts --network localhost",
+    "deploy:sepolia": "hardhat deploy --network sepolia --tags Fhevm",
+    "deploy:base-sepolia": "hardhat deploy --config hardhat.base.config.ts --network baseSepolia --tags IdentityRegistryMirror && hardhat run --config hardhat.base.config.ts scripts/validate-deployments.ts --network baseSepolia",
+    "validate:local": "DEPLOYMENT_VALIDATION_WRITES=true hardhat run scripts/validate-deployments.ts --network localhost",
+    "validate:sepolia": "hardhat run scripts/validate-deployments.ts --network sepolia",
+    "validate:base-sepolia": "hardhat run --config hardhat.base.config.ts scripts/validate-deployments.ts --network baseSepolia",
     "typechain": "hardhat typechain",
     "export-abi": "bun scripts/export-abi.ts",
     "print:deployments": "bun scripts/print-deployments.ts",

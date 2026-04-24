@@ -29,5 +29,5 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
 export default func;
 func.id = "deploy_compliant_erc20";
-func.tags = ["CompliantERC20"];
+func.tags = ["Fhevm", "CompliantERC20"];
 func.dependencies = ["ComplianceRules"];

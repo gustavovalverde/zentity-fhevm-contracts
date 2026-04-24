@@ -1,128 +1,198 @@
 /**
- * @zentity/fhevm-contracts
+ * @zentity/contracts
  *
- * fhEVM smart contracts for privacy-preserving identity attestations
+ * ABIs, deployments, and typed helpers for Zentity smart contracts.
  */
 
-import complianceRulesAbi from "../abi/ComplianceRules.json";
-import compliantErc20Abi from "../abi/CompliantERC20.json";
-import identityRegistryAbi from "../abi/IdentityRegistry.json";
+import { type Client, getContract } from "viem";
+import complianceRulesAbiJson from "../abi/ComplianceRules.json";
+import compliantErc20AbiJson from "../abi/CompliantERC20.json";
+import identityRegistryAbiJson from "../abi/IdentityRegistry.json";
+import identityRegistryMirrorAbiJson from "../abi/IdentityRegistryMirror.json";
+import baseSepoliaAddressesJson from "../deployments/baseSepolia/addresses.json";
 import hardhatAddressesJson from "../deployments/hardhat/addresses.json";
 import sepoliaAddressesJson from "../deployments/sepolia/addresses.json";
+import {
+  type ChainId,
+  type ContractName,
+  chainIdByNetwork,
+  contractNames,
+  type FhevmContractName,
+  fhevmContractNames,
+  isNetworkName,
+  type MirrorContractName,
+  mirrorContractNames,
+  type NetworkName,
+} from "./contract-names";
 
-export const CONTRACT_NAMES = ["IdentityRegistry", "ComplianceRules", "CompliantERC20"] as const;
-
-export type ContractName = (typeof CONTRACT_NAMES)[number];
-
-export type ContractAddresses = {
-  IdentityRegistry: string;
-  ComplianceRules: string;
-  CompliantERC20: string;
+export {
+  type ChainId,
+  type ContractName,
+  chainIdByNetwork,
+  contractNames,
+  type FhevmContractName,
+  fhevmContractNames,
+  isNetworkName,
+  type MirrorContractName,
+  mirrorContractNames,
+  type NetworkName,
 };
 
-export type DeploymentManifest = {
+export type ContractAddresses = Partial<Record<ContractName, string>>;
+
+export type FhevmContractAddresses = Record<FhevmContractName, string>;
+
+export type ContractDeployment<TContractName extends ContractName = ContractName> = Record<
+  TContractName,
+  { address: string; txHash?: string }
+>;
+
+export type DeploymentManifest<TContractName extends ContractName = ContractName> = {
   network: string;
   chainId: number;
   deployedAt?: string;
   deployer?: string;
-  contracts: Record<ContractName, { address: string; txHash?: string }>;
+  contracts: ContractDeployment<TContractName>;
 };
 
-type AddressesFile = {
-  network?: string;
-  chainId?: number;
-  deployedAt?: string;
-  deployer?: string;
-  contracts: Record<ContractName, { address: string; txHash?: string }>;
+export type FhevmDeploymentManifest = DeploymentManifest<FhevmContractName>;
+export type MirrorDeploymentManifest = DeploymentManifest<MirrorContractName>;
+
+type AddressesFile = Omit<DeploymentManifest, "contracts"> & {
+  contracts: Partial<Record<ContractName, { address: string; txHash?: string }>>;
 };
 
 const hardhatAddresses = hardhatAddressesJson as AddressesFile;
+const baseSepoliaAddresses = baseSepoliaAddressesJson as AddressesFile;
 const sepoliaAddresses = sepoliaAddressesJson as AddressesFile;
 
-export const CHAIN_ID_BY_NETWORK = {
-  hardhat: 31337,
-  localhost: 31337,
-  sepolia: 11155111,
-} as const;
-
-export type NetworkName = keyof typeof CHAIN_ID_BY_NETWORK;
-export type ChainId = (typeof CHAIN_ID_BY_NETWORK)[NetworkName];
-
-function toManifest(
+function requireDeploymentContracts<TContractName extends ContractName>(
   source: AddressesFile,
-  fallbackNetwork: NetworkName,
-  fallbackChainId: number,
-): DeploymentManifest {
+  required: readonly TContractName[],
+  network: NetworkName,
+): ContractDeployment<TContractName> {
+  const missing = required.filter((name) => !source.contracts[name]);
+  if (missing.length > 0) {
+    throw new Error(`Missing deployment contract(s) for ${network}: ${missing.join(", ")}.`);
+  }
+
+  return Object.fromEntries(
+    required.map((name) => [name, source.contracts[name]]),
+  ) as ContractDeployment<TContractName>;
+}
+
+function toManifest<TContractName extends ContractName>(
+  source: AddressesFile,
+  defaultNetwork: NetworkName,
+  defaultChainId: number,
+  required: readonly TContractName[],
+): DeploymentManifest<TContractName> {
   return {
-    network: source.network ?? fallbackNetwork,
-    chainId: source.chainId ?? fallbackChainId,
+    network: source.network ?? defaultNetwork,
+    chainId: source.chainId ?? defaultChainId,
     deployedAt: source.deployedAt,
     deployer: source.deployer,
-    contracts: {
-      IdentityRegistry: source.contracts.IdentityRegistry,
-      ComplianceRules: source.contracts.ComplianceRules,
-      CompliantERC20: source.contracts.CompliantERC20,
-    },
+    contracts: requireDeploymentContracts(source, required, defaultNetwork),
   };
 }
 
-export const DEPLOYMENTS: Partial<Record<NetworkName, DeploymentManifest>> = {
-  hardhat: toManifest(hardhatAddresses, "hardhat", CHAIN_ID_BY_NETWORK.hardhat),
-  localhost: toManifest(hardhatAddresses, "localhost", CHAIN_ID_BY_NETWORK.localhost),
-  sepolia: toManifest(sepoliaAddresses, "sepolia", CHAIN_ID_BY_NETWORK.sepolia),
+const hardhatDeployment = toManifest(
+  hardhatAddresses,
+  "hardhat",
+  chainIdByNetwork.hardhat,
+  fhevmContractNames,
+);
+const localhostDeployment = toManifest(
+  hardhatAddresses,
+  "localhost",
+  chainIdByNetwork.localhost,
+  fhevmContractNames,
+);
+const sepoliaDeployment = toManifest(
+  sepoliaAddresses,
+  "sepolia",
+  chainIdByNetwork.sepolia,
+  fhevmContractNames,
+);
+const baseSepoliaDeployment = toManifest(
+  baseSepoliaAddresses,
+  "baseSepolia",
+  chainIdByNetwork.baseSepolia,
+  mirrorContractNames,
+);
+
+const deploymentsByNetwork: Partial<
+  Record<NetworkName, FhevmDeploymentManifest | MirrorDeploymentManifest>
+> = {
+  hardhat: hardhatDeployment,
+  localhost: localhostDeployment,
+  sepolia: sepoliaDeployment,
+  baseSepolia: baseSepoliaDeployment,
+};
+
+export type DeploymentsByChainId = {
+  [chainIdByNetwork.hardhat]: FhevmDeploymentManifest;
+  [chainIdByNetwork.sepolia]: FhevmDeploymentManifest;
+} & Partial<Record<typeof chainIdByNetwork.baseSepolia, MirrorDeploymentManifest>>;
+
+export const deployments: DeploymentsByChainId = {
+  [chainIdByNetwork.hardhat]: hardhatDeployment,
+  [chainIdByNetwork.sepolia]: sepoliaDeployment,
+  [chainIdByNetwork.baseSepolia]: baseSepoliaDeployment,
 };
 
 function toAddresses(source: AddressesFile): ContractAddresses {
-  return {
-    IdentityRegistry: source.contracts.IdentityRegistry.address,
-    ComplianceRules: source.contracts.ComplianceRules.address,
-    CompliantERC20: source.contracts.CompliantERC20.address,
-  };
+  return Object.fromEntries(
+    Object.entries(source.contracts).map(([name, contract]) => [name, contract.address]),
+  ) as ContractAddresses;
 }
 
-export const ADDRESSES = {
-  hardhat: toAddresses(hardhatAddresses),
-  localhost: toAddresses(hardhatAddresses),
-  sepolia: toAddresses(sepoliaAddresses),
-} as const satisfies Record<string, ContractAddresses>;
-
-export const ABIS = {
-  IdentityRegistry: identityRegistryAbi,
-  ComplianceRules: complianceRulesAbi,
-  CompliantERC20: compliantErc20Abi,
+export const abis = {
+  IdentityRegistry: identityRegistryAbiJson,
+  ComplianceRules: complianceRulesAbiJson,
+  CompliantERC20: compliantErc20AbiJson,
+  IdentityRegistryMirror: identityRegistryMirrorAbiJson,
 } as const;
 
-export type AbiMap = typeof ABIS;
+export type AbiMap = typeof abis;
+
+export const identityRegistryAbi = abis.IdentityRegistry;
+export const complianceRulesAbi = abis.ComplianceRules;
+export const compliantErc20Abi = abis.CompliantERC20;
+export const identityRegistryMirrorAbi = abis.IdentityRegistryMirror;
+
+export const attestedOnlyLevel = 0;
+
+export const complianceLevels = {
+  none: 1,
+  basic: 2,
+  full: 3,
+  chip: 4,
+} as const;
 
 export function getAbi(name: ContractName) {
-  return ABIS[name];
+  return abis[name];
 }
 
-export const IdentityRegistryABI = identityRegistryAbi;
-export const ComplianceRulesABI = complianceRulesAbi;
-export const CompliantERC20ABI = compliantErc20Abi;
-
-export function getDeployment(network: NetworkName): DeploymentManifest {
-  const deployment = DEPLOYMENTS[network];
+export function getDeployment(
+  network: NetworkName,
+): FhevmDeploymentManifest | MirrorDeploymentManifest {
+  const deployment = deploymentsByNetwork[network];
   if (!deployment) {
     throw new Error(
-      `No deployments found for network "${network}". Deploy contracts and add deployments/${network}/*.json.`,
+      `No deployments found for network "${network}". Deploy contracts or provide address overrides.`,
     );
   }
   return deployment;
 }
 
 export function hasDeployment(network: NetworkName): boolean {
-  return Boolean(DEPLOYMENTS[network]);
-}
-
-export function isNetworkName(value: string): value is NetworkName {
-  return value in CHAIN_ID_BY_NETWORK;
+  return Boolean(deploymentsByNetwork[network]);
 }
 
 export function getNetworkNames(chainId: number): NetworkName[] {
-  return (Object.keys(CHAIN_ID_BY_NETWORK) as NetworkName[]).filter(
-    (name) => CHAIN_ID_BY_NETWORK[name] === chainId,
+  return (Object.keys(chainIdByNetwork) as NetworkName[]).filter(
+    (name) => chainIdByNetwork[name] === chainId,
   );
 }
 
@@ -135,31 +205,145 @@ export function getNetworkName(chainId: number, prefer?: NetworkName): NetworkNa
   return matches[0];
 }
 
+function normalizeNetwork(
+  networkOrChainId: NetworkName | number,
+  prefer?: NetworkName,
+): NetworkName {
+  return typeof networkOrChainId === "number"
+    ? getNetworkName(networkOrChainId, prefer)
+    : networkOrChainId;
+}
+
+function requireAddressMap<TContractName extends ContractName>(
+  contracts: ContractAddresses,
+  required: readonly TContractName[],
+  network: NetworkName,
+): Record<TContractName, string> {
+  const missing = required.filter((name) => !contracts[name]);
+  if (missing.length > 0) {
+    throw new Error(`Missing contract address(es) for ${network}: ${missing.join(", ")}.`);
+  }
+
+  return Object.fromEntries(required.map((name) => [name, contracts[name]])) as Record<
+    TContractName,
+    string
+  >;
+}
+
 export function getContractAddresses(
   networkOrChainId: NetworkName | number,
   options?: {
     prefer?: NetworkName;
-    overrides?: Partial<ContractAddresses>;
+    overrides?: ContractAddresses;
   },
 ): ContractAddresses {
-  const network =
-    typeof networkOrChainId === "number"
-      ? getNetworkName(networkOrChainId, options?.prefer)
-      : networkOrChainId;
+  const network = normalizeNetwork(networkOrChainId, options?.prefer);
+  const deployment = deploymentsByNetwork[network];
 
-  const deployment = getDeployment(network);
-  const base = {
-    IdentityRegistry: deployment.contracts.IdentityRegistry.address,
-    ComplianceRules: deployment.contracts.ComplianceRules.address,
-    CompliantERC20: deployment.contracts.CompliantERC20.address,
+  if (!deployment && !options?.overrides) {
+    throw new Error(
+      `No deployment found for "${network}". Provide address overrides or deploy contracts first.`,
+    );
+  }
+
+  return {
+    ...(deployment ? toAddresses(deployment) : {}),
+    ...(options?.overrides ?? {}),
   };
+}
 
-  return { ...base, ...(options?.overrides ?? {}) };
+export function getFhevmContractAddresses(
+  networkOrChainId: NetworkName | number,
+  options?: {
+    prefer?: NetworkName;
+    overrides?: Partial<FhevmContractAddresses>;
+  },
+): FhevmContractAddresses {
+  const network = normalizeNetwork(networkOrChainId, options?.prefer);
+  const contracts = getContractAddresses(network, {
+    overrides: options?.overrides,
+  });
+
+  return requireAddressMap(contracts, fhevmContractNames, network);
+}
+
+export function getIdentityRegistryMirrorAddress(
+  networkOrChainId: NetworkName | number,
+  options?: {
+    prefer?: NetworkName;
+    overrides?: Partial<Record<MirrorContractName, string>>;
+  },
+): string {
+  const network = normalizeNetwork(networkOrChainId, options?.prefer);
+  const contracts = getContractAddresses(network, {
+    overrides: options?.overrides,
+  });
+
+  return requireAddressMap(contracts, mirrorContractNames, network).IdentityRegistryMirror;
+}
+
+type ContractClientOptions<TOverrides extends ContractAddresses> = {
+  address?: string;
+  network?: NetworkName | number;
+  overrides?: Partial<TOverrides>;
+  prefer?: NetworkName;
+};
+
+function resolveClientChainId(
+  client: Client,
+  explicitNetwork?: NetworkName | number,
+): NetworkName | number {
+  if (explicitNetwork !== undefined) {
+    return explicitNetwork;
+  }
+
+  const chainId = client.chain?.id;
+  if (typeof chainId !== "number") {
+    throw new Error("A network or client with chain metadata is required.");
+  }
+
+  return chainId;
+}
+
+export function getIdentityRegistry(
+  client: Client,
+  options?: ContractClientOptions<FhevmContractAddresses>,
+) {
+  const address =
+    options?.address ??
+    getFhevmContractAddresses(resolveClientChainId(client, options?.network), {
+      prefer: options?.prefer,
+      overrides: options?.overrides,
+    }).IdentityRegistry;
+
+  return getContract({
+    address: address as `0x${string}`,
+    abi: identityRegistryAbi,
+    client,
+  });
+}
+
+export function getIdentityRegistryMirror(
+  client: Client,
+  options?: ContractClientOptions<Record<MirrorContractName, string>>,
+) {
+  const address =
+    options?.address ??
+    getIdentityRegistryMirrorAddress(resolveClientChainId(client, options?.network), {
+      prefer: options?.prefer,
+      overrides: options?.overrides,
+    });
+
+  return getContract({
+    address: address as `0x${string}`,
+    abi: identityRegistryMirrorAbi,
+    client,
+  });
 }
 
 // ============ EIP-712 Permit Types ============
 
-/** Attribute bitmask constants for grantAttributeAccess */
+/** Attribute bitmask constants for grantAttributeAccess. */
 export const ATTR = {
   BIRTH_YEAR: 0x01,
   COUNTRY: 0x02,
@@ -168,7 +352,7 @@ export const ATTR = {
   ALL: 0x0f,
 } as const;
 
-/** Purpose enum matching the Solidity `IIdentityRegistry.Purpose` */
+/** Purpose enum matching the Solidity `IIdentityRegistry.Purpose`. */
 export enum Purpose {
   COMPLIANCE_CHECK = 0,
   AGE_VERIFICATION = 1,
@@ -177,7 +361,7 @@ export enum Purpose {
   AUDIT = 4,
 }
 
-/** EIP-712 type definition for the attestation permit (compatible with ethers/viem signTypedData) */
+/** EIP-712 type definition for the attestation permit. */
 export const ATTEST_PERMIT_TYPES = {
   AttestPermit: [
     { name: "user", type: "address" },
@@ -192,7 +376,7 @@ export const ATTEST_PERMIT_TYPES = {
   ],
 } as const;
 
-/** Build the EIP-712 domain for attestation permit signing */
+/** Build the EIP-712 domain for attestation permit signing. */
 export function getAttestPermitDomain(chainId: number, registryAddress: string) {
   return {
     name: "ZentityIdentityRegistry",
@@ -202,7 +386,7 @@ export function getAttestPermitDomain(chainId: number, registryAddress: string) 
   };
 }
 
-/** TypeScript type for the permit struct (matches Solidity AttestPermitData) */
+/** TypeScript type for the permit struct. */
 export interface AttestPermitData {
   birthYearOffset: number;
   countryCode: number;
@@ -218,7 +402,7 @@ export interface AttestPermitData {
 
 // ============ User Consent Types ============
 
-/** EIP-712 type definition for user consent receipt */
+/** EIP-712 type definition for user consent receipt. */
 export const CONSENT_TYPES = {
   UserConsent: [
     { name: "user", type: "address" },
@@ -229,7 +413,6 @@ export const CONSENT_TYPES = {
   ],
 } as const;
 
-/** TypeScript type for the consent struct */
 export interface UserConsent {
   user: string;
   attributeMask: number;
@@ -238,7 +421,6 @@ export interface UserConsent {
   deadline: number;
 }
 
-/** TypeScript type for the consent signature (v, r, s components) */
 export interface ConsentSignature {
   v: number;
   r: string;
@@ -256,33 +438,4 @@ export function getConsentRevision(currentRevision: bigint | number, isCurrently
   }
 
   return typeof currentRevision === "bigint" ? currentRevision + 1n : currentRevision + 1;
-}
-
-// ============ Address Resolution ============
-
-export function resolveContractAddresses(
-  networkOrChainId: NetworkName | number,
-  options?: {
-    prefer?: NetworkName;
-    overrides?: Partial<ContractAddresses>;
-  },
-): ContractAddresses {
-  const network =
-    typeof networkOrChainId === "number"
-      ? getNetworkName(networkOrChainId, options?.prefer)
-      : networkOrChainId;
-
-  if (hasDeployment(network)) {
-    return getContractAddresses(network, options);
-  }
-
-  const overrides = options?.overrides ?? {};
-  const missing = CONTRACT_NAMES.filter((name) => !overrides[name]);
-  if (missing.length > 0) {
-    throw new Error(
-      `No deployment found for "${network}". Provide overrides for: ${missing.join(", ")}.`,
-    );
-  }
-
-  return overrides as ContractAddresses;
 }

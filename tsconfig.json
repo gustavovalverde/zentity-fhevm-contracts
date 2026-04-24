@@ -18,7 +18,8 @@
     "scripts/**/*",
     "test/**/*",
     "deploy/**/*",
-    "hardhat.config.ts"
+    "hardhat.config.ts",
+    "hardhat.base.config.ts"
   ],
   "exclude": ["node_modules", "artifacts", "cache"]
 }

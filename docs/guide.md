@@ -24,6 +24,14 @@ bunx hardhat node
 bun run deploy:local
 ```
 
+The local deploy command also runs write-path validation against the deployed
+`IdentityRegistryMirror`: record, threshold read, level update, and revoke.
+To rerun validation without redeploying:
+
+```bash
+bun run validate:local
+```
+
 3) Print addresses:
 
 ```bash
@@ -39,7 +47,7 @@ Required env values (put secrets in `.env.local`):
 ```
 FHEVM_RPC_URL=...
 FHEVM_PROVIDER_ID=zama # zama = Zama relayer SDK
-PRIVATE_KEY=0x...
+FHEVM_PRIVATE_KEY=0x...
 ```
 
 Deploy:
@@ -55,6 +63,56 @@ bun run print:deployments sepolia --env
 ```
 
 Addresses are written to `deployments/sepolia`.
+
+## Base Sepolia mirror deploy
+
+The Base mirror is the public, plaintext read layer for x402 and other
+resource-server reads. It stores only the active attestation marker and
+compliance level.
+
+For the rationale and privacy boundary, see
+[Production Attestation Architecture](production-attestation-architecture.md#public-read-mirrors).
+
+Required env values:
+
+```
+BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
+BASE_SEPOLIA_PRIVATE_KEY=0x...
+BASE_SEPOLIA_REGISTRAR_ADDRESS=0x...
+```
+
+`BASE_SEPOLIA_PRIVATE_KEY` deploys the proxy and owns the initial upgrade/admin
+role. `BASE_SEPOLIA_REGISTRAR_ADDRESS` is the separate writer identity that
+records mirrored compliance levels.
+
+Deploy:
+
+```bash
+bun run deploy:base-sepolia
+```
+
+The Base deploy command validates the deployed mirror bytecode, owner, registrar,
+and level constants before it exits. To rerun read-only validation:
+
+```bash
+bun run validate:base-sepolia
+```
+
+Print the address:
+
+```bash
+bun run print:deployments baseSepolia --env
+```
+
+Configure the web app with the printed mirror address as
+`BASE_SEPOLIA_IDENTITY_REGISTRY_MIRROR`.
+
+The committed Base Sepolia manifest is exported as
+`@zentity/contracts/deployments/baseSepolia`.
+App code should prefer that package manifest and use
+`BASE_SEPOLIA_IDENTITY_REGISTRY_MIRROR` only for alternate deployments.
+`BASE_SEPOLIA_REGISTRAR_PRIVATE_KEY` must correspond to the registrar address
+configured during deployment.
 
 ## Testing
 
@@ -98,6 +156,12 @@ bun run test:local
 bun run test:sepolia
 ```
 
+To validate already deployed Sepolia artifacts without running integration tests:
+
+```bash
+bun run validate:sepolia
+```
+
 ### Sepolia integration notes
 
 - The **Full Integration Flow** requires at least 5 funded signers.
@@ -135,3 +199,15 @@ Best practices:
 - Use a **dedicated deployer wallet** (testnet only).
 - Move ownership to a **multisig** after deployment.
 - Avoid renouncing ownership unless no admin actions are ever needed.
+- Keep the mirror registrar key separate from the proxy owner. The registrar
+  writes mirrored compliance; ownership controls upgrades and registrar
+  rotation.
+- Revocation emits both `IdentityRevoked(user)` and `LevelUpdated(user, level, 0)`.
+  Lifecycle indexers can subscribe to revocations; level-only indexers can
+  remain consistent from level events alone.
+- `currentMirrorAttestationId` is a mirror-local marker. It is stable across level
+  changes and distinct from the encrypted fhEVM registry revision.
+- `MAX_COMPLIANCE_LEVEL` is intentionally fixed at `4` for the current Zentity
+  tier scale. Expanding the scale requires a proxy upgrade and a runbook entry.
+- Before any mainnet deployment, add an operational circuit breaker or registrar
+  pause path so a compromised registrar key can be contained quickly.

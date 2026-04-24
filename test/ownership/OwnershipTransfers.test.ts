@@ -1,19 +1,12 @@
 import { expect } from "chai";
 import hre from "hardhat";
+import { deployUupsProxy } from "../utils/deploy-uups-proxy";
 
 describe("Ownership transfers", () => {
   async function deployIdentityRegistryProxy() {
     const [owner] = await hre.ethers.getSigners();
-    const factory = await hre.ethers.getContractFactory("IdentityRegistry");
-    const impl = await factory.deploy();
-    await impl.waitForDeployment();
-
-    const proxyFactory = await hre.ethers.getContractFactory("ERC1967Proxy");
-    const initData = factory.interface.encodeFunctionData("initialize", [owner.address]);
-    const proxy = await proxyFactory.deploy(await impl.getAddress(), initData);
-    await proxy.waitForDeployment();
-
-    return hre.ethers.getContractAt("IdentityRegistry", await proxy.getAddress());
+    const proxyAddress = await deployUupsProxy("IdentityRegistry", [owner.address]);
+    return hre.ethers.getContractAt("IdentityRegistry", proxyAddress);
   }
 
   async function deployComplianceRules(registryAddress: string) {
@@ -28,6 +21,15 @@ describe("Ownership transfers", () => {
     const contract = await factory.deploy("Zentity Token", "ZTY", checkerAddress);
     await contract.waitForDeployment();
     return contract;
+  }
+
+  async function deployIdentityRegistryMirrorProxy() {
+    const [owner] = await hre.ethers.getSigners();
+    const proxyAddress = await deployUupsProxy("IdentityRegistryMirror", [
+      owner.address,
+      owner.address,
+    ]);
+    return hre.ethers.getContractAt("IdentityRegistryMirror", proxyAddress);
   }
 
   it("supports two-step ownership in IdentityRegistry (via proxy)", async () => {
@@ -83,5 +85,20 @@ describe("Ownership transfers", () => {
     await token.connect(owner).transferOwnership(nextOwner.address);
     await token.connect(nextOwner).acceptOwnership();
     expect(await token.owner()).to.equal(nextOwner.address);
+  });
+
+  it("supports two-step ownership in IdentityRegistryMirror (via proxy)", async () => {
+    const mirror = await deployIdentityRegistryMirrorProxy();
+    const [owner, nextOwner, other] = await hre.ethers.getSigners();
+
+    expect(await mirror.owner()).to.equal(owner.address);
+
+    await expect(
+      mirror.connect(other).transferOwnership(nextOwner.address),
+    ).to.be.revertedWithCustomError(mirror, "OwnableUnauthorizedAccount");
+
+    await mirror.connect(owner).transferOwnership(nextOwner.address);
+    await mirror.connect(nextOwner).acceptOwnership();
+    expect(await mirror.owner()).to.equal(nextOwner.address);
   });
 });

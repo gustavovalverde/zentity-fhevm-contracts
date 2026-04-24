@@ -1,15 +1,20 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { type ContractName, contractNames } from "../src/contract-names";
 
-const contracts = ["IdentityRegistry", "ComplianceRules", "CompliantERC20"];
 const artifactsDir = join(__dirname, "../artifacts/contracts");
 const abiDir = join(__dirname, "../abi");
 
-// Ensure abi directory exists
 mkdirSync(abiDir, { recursive: true });
 
-for (const contract of contracts) {
-  // Find the artifact (check multiple possible locations)
+const abiExportName: Record<ContractName, string> = {
+  IdentityRegistry: "identityRegistryAbi",
+  IdentityRegistryMirror: "identityRegistryMirrorAbi",
+  ComplianceRules: "complianceRulesAbi",
+  CompliantERC20: "compliantErc20Abi",
+};
+
+for (const contract of contractNames) {
   const possiblePaths = [
     join(artifactsDir, `core/${contract}.sol/${contract}.json`),
     join(artifactsDir, `compliance/${contract}.sol/${contract}.json`),
@@ -19,12 +24,9 @@ for (const contract of contracts) {
 
   let artifact: { abi: unknown } | null = null;
   for (const path of possiblePaths) {
-    try {
-      artifact = JSON.parse(readFileSync(path, "utf8"));
-      break;
-    } catch {
-      // Try next path
-    }
+    if (!existsSync(path)) continue;
+    artifact = JSON.parse(readFileSync(path, "utf8"));
+    break;
   }
 
   if (!artifact) {
@@ -32,22 +34,23 @@ for (const contract of contracts) {
     continue;
   }
 
-  // Write just the ABI
   const abiPath = join(abiDir, `${contract}.json`);
-  writeFileSync(abiPath, JSON.stringify(artifact.abi, null, 2));
+  writeFileSync(abiPath, `${JSON.stringify(artifact.abi, null, 2)}\n`);
   console.log(`Exported ${contract} ABI to ${abiPath}`);
 }
 
-const indexJs = contracts
-  .map((contract) => `const ${contract}ABI = require("./${contract}.json");`)
+const indexJs = contractNames
+  .map((contract) => `const ${abiExportName[contract]} = require("./${contract}.json");`)
   .join("\n");
-const indexExports = `\n\nmodule.exports = {\n${contracts
-  .map((contract) => `  ${contract}ABI,`)
+const indexExports = `\n\nmodule.exports = {\n${contractNames
+  .map((contract) => `  ${abiExportName[contract]},`)
   .join("\n")}\n};\n`;
 
 writeFileSync(join(abiDir, "index.js"), `${indexJs}${indexExports}`);
 
-const indexDts = contracts.map((contract) => `export const ${contract}ABI: unknown;`).join("\n");
+const indexDts = contractNames
+  .map((contract) => `export const ${abiExportName[contract]}: unknown;`)
+  .join("\n");
 writeFileSync(join(abiDir, "index.d.ts"), `${indexDts}\n`);
 
 console.log("ABI export complete!");

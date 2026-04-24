@@ -39,7 +39,9 @@ The recommended production model is:
 5. The user grants scoped access to specific attributes for specific purposes.
 6. Only authorized policy contracts may evaluate encrypted compliance
    predicates.
-7. Revocation invalidates the active attestation revision, any outstanding
+7. Public-read mirrors receive only the minimum state needed for their
+   explicit predicate surface.
+8. Revocation invalidates the active attestation revision, any outstanding
    issuance authorizations, and any stale grants tied to the old revision.
 
 This is the best fit for a production identity product because it preserves the
@@ -368,6 +370,32 @@ If verification results are cached on-chain, cache keys must include the
 attestation revision. Otherwise stale results can outlive revocation and
 re-attestation boundaries.
 
+### Public-Read Mirrors
+
+`IdentityRegistryMirror` is the current public-read surface for Base
+Sepolia. It is not a second source of identity truth. It receives writes only
+after a canonical Sepolia/on-chain validity event and stores only:
+
+- whether the wallet has an active mirrored attestation
+- the current public compliance level
+- a local attestation id for lifecycle debugging
+
+The mirror exists because Base does not run Zama fhEVM infrastructure today and
+x402 resource servers need a cheap, public `isCompliant(user,minLevel)` read.
+It must not grow into a generic identity database. New public predicates such
+as age, jurisdiction, sanctions, or document type need a separate privacy review
+and a dedicated predicate contract or explicitly versioned mirror surface.
+
+Revocation remains lifecycle-wide. A revoke event in the canonical validity
+pipeline must fan out to the mirror through the same delivery/retry machinery as
+credential status, RP notices, and encrypted on-chain revocation.
+
+The developer-facing contract surface should stay as small as the predicate:
+`isAttested(address)`, `currentLevel(address)`, and
+`isCompliant(address,uint8)`. The package should expose typed ABIs, deployment
+manifests, and helpers so integrators do not fork address constants or rebuild
+local wrappers.
+
 ## What Should Remain User-Generated
 
 The hybrid model does not eliminate user-generated ciphertext. It narrows it to
@@ -432,6 +460,7 @@ The minimum acceptable production posture is:
 - auditable issuance logs
 - explicit registrar rotation
 - revocation fan-out into off-chain records and credentials
+- separate ownership and registrar keys for public mirrors
 
 ## Future Optional Upgrade
 

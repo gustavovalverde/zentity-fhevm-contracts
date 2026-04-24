@@ -7,61 +7,66 @@
  * Usage: bun scripts/consolidate-deployments.ts [network...]
  *        Defaults to all directories under deployments/ if no args given.
  */
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import {
+  chainIdByNetwork,
+  contractNames,
+  getRequiredContracts,
+  isNetworkName,
+} from "../src/contract-names";
 
 const DEPLOYMENTS_DIR = resolve(__dirname, "../deployments");
-const CONTRACT_NAMES = ["IdentityRegistry", "ComplianceRules", "CompliantERC20"] as const;
-
-const CHAIN_IDS: Record<string, number> = {
-  hardhat: 31337,
-  localhost: 31337,
-  sepolia: 11155111,
-};
 
 type ContractEntry = { address: string; txHash?: string };
 
+function readJsonIfExists<T>(filePath: string): T | null {
+  try {
+    return JSON.parse(readFileSync(filePath, "utf-8")) as T;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
 function consolidateNetwork(network: string): void {
-  const networkDir = join(DEPLOYMENTS_DIR, network);
-  if (!existsSync(networkDir)) {
-    console.error(`No deployments directory for network "${network}"`);
+  if (!isNetworkName(network)) {
+    console.error(`  Unknown network "${network}" — add it to chainIdByNetwork`);
     process.exit(1);
   }
 
-  // Skip if addresses.json already exists and no individual contract JSONs are present
-  const addressesPath = join(networkDir, "addresses.json");
-  const hasContractJsons = CONTRACT_NAMES.some((n) => existsSync(join(networkDir, `${n}.json`)));
-  if (existsSync(addressesPath) && !hasContractJsons) {
-    console.log(`  ✓ ${addressesPath} (already exists)`);
-    return;
-  }
-
+  const networkDir = join(DEPLOYMENTS_DIR, network);
   const contracts: Record<string, ContractEntry> = {};
+  let foundAny = false;
 
-  for (const name of CONTRACT_NAMES) {
-    const filePath = join(networkDir, `${name}.json`);
-    if (!existsSync(filePath)) {
+  for (const name of contractNames) {
+    const raw = readJsonIfExists<{ address: string; transactionHash?: string }>(
+      join(networkDir, `${name}.json`),
+    );
+    if (!raw) {
       console.warn(`  Missing ${name}.json — skipping`);
       continue;
     }
-    const raw = JSON.parse(readFileSync(filePath, "utf-8"));
+    foundAny = true;
     contracts[name] = {
       address: raw.address,
       ...(raw.transactionHash ? { txHash: raw.transactionHash } : {}),
     };
   }
 
-  const missing = CONTRACT_NAMES.filter((n) => !contracts[n]);
+  const addressesPath = join(networkDir, "addresses.json");
+  if (!foundAny && readJsonIfExists(addressesPath)) {
+    console.log(`  ✓ ${addressesPath} (already exists)`);
+    return;
+  }
+
+  const missing = getRequiredContracts(network).filter((n) => !contracts[n]);
   if (missing.length > 0) {
     console.error(`  Missing contracts for ${network}: ${missing.join(", ")}`);
     process.exit(1);
   }
 
-  const chainId = CHAIN_IDS[network];
-  if (!chainId) {
-    console.error(`  Unknown chainId for network "${network}" — add it to CHAIN_IDS`);
-    process.exit(1);
-  }
+  const chainId = chainIdByNetwork[network];
 
   const output = {
     network,

@@ -1,0 +1,10 @@
+{
+  "network": "baseSepolia",
+  "chainId": 84532,
+  "contracts": {
+    "IdentityRegistryMirror": {
+      "address": "0xa33D1032fdcAA44a56d5372971ecA8e06b86fa14",
+      "txHash": "0x8d890db2052b1b86a285be513a2e024f51256829f458521d0930f01c5f2b8e46"
+    }
+  }
+}

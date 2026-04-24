@@ -1,0 +1,7 @@
+.git
+node_modules
+artifacts
+cache
+typechain-types
+fhevmTemp
+gasReporterOutput.json
