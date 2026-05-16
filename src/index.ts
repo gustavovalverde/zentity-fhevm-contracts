@@ -14,11 +14,11 @@ import hardhatAddressesJson from "../deployments/hardhat/addresses.json";
 import sepoliaAddressesJson from "../deployments/sepolia/addresses.json";
 import {
   type ChainId,
+  type ConfidentialContractName,
   type ContractName,
   chainIdByNetwork,
+  confidentialContractNames,
   contractNames,
-  type FhevmContractName,
-  fhevmContractNames,
   isNetworkName,
   type MirrorContractName,
   mirrorContractNames,
@@ -27,11 +27,11 @@ import {
 
 export {
   type ChainId,
+  type ConfidentialContractName,
+  confidentialContractNames,
   type ContractName,
   chainIdByNetwork,
   contractNames,
-  type FhevmContractName,
-  fhevmContractNames,
   isNetworkName,
   type MirrorContractName,
   mirrorContractNames,
@@ -40,7 +40,7 @@ export {
 
 export type ContractAddresses = Partial<Record<ContractName, string>>;
 
-export type FhevmContractAddresses = Record<FhevmContractName, string>;
+export type ConfidentialContractAddresses = Record<ConfidentialContractName, string>;
 
 export type ContractDeployment<TContractName extends ContractName = ContractName> = Record<
   TContractName,
@@ -55,7 +55,7 @@ export type DeploymentManifest<TContractName extends ContractName = ContractName
   contracts: ContractDeployment<TContractName>;
 };
 
-export type FhevmDeploymentManifest = DeploymentManifest<FhevmContractName>;
+export type ConfidentialDeploymentManifest = DeploymentManifest<ConfidentialContractName>;
 export type MirrorDeploymentManifest = DeploymentManifest<MirrorContractName>;
 
 type AddressesFile = Omit<DeploymentManifest, "contracts"> & {
@@ -100,19 +100,19 @@ const hardhatDeployment = toManifest(
   hardhatAddresses,
   "hardhat",
   chainIdByNetwork.hardhat,
-  fhevmContractNames,
+  confidentialContractNames,
 );
 const localhostDeployment = toManifest(
   hardhatAddresses,
   "localhost",
   chainIdByNetwork.localhost,
-  fhevmContractNames,
+  confidentialContractNames,
 );
 const sepoliaDeployment = toManifest(
   sepoliaAddresses,
   "sepolia",
   chainIdByNetwork.sepolia,
-  fhevmContractNames,
+  confidentialContractNames,
 );
 const baseSepoliaDeployment = toManifest(
   baseSepoliaAddresses,
@@ -122,7 +122,7 @@ const baseSepoliaDeployment = toManifest(
 );
 
 const deploymentsByNetwork: Partial<
-  Record<NetworkName, FhevmDeploymentManifest | MirrorDeploymentManifest>
+  Record<NetworkName, ConfidentialDeploymentManifest | MirrorDeploymentManifest>
 > = {
   hardhat: hardhatDeployment,
   localhost: localhostDeployment,
@@ -131,8 +131,8 @@ const deploymentsByNetwork: Partial<
 };
 
 export type DeploymentsByChainId = {
-  [chainIdByNetwork.hardhat]: FhevmDeploymentManifest;
-  [chainIdByNetwork.sepolia]: FhevmDeploymentManifest;
+  [chainIdByNetwork.hardhat]: ConfidentialDeploymentManifest;
+  [chainIdByNetwork.sepolia]: ConfidentialDeploymentManifest;
 } & Partial<Record<typeof chainIdByNetwork.baseSepolia, MirrorDeploymentManifest>>;
 
 export const deployments: DeploymentsByChainId = {
@@ -176,7 +176,7 @@ export function getAbi(name: ContractName) {
 
 export function getDeployment(
   network: NetworkName,
-): FhevmDeploymentManifest | MirrorDeploymentManifest {
+): ConfidentialDeploymentManifest | MirrorDeploymentManifest {
   const deployment = deploymentsByNetwork[network];
   if (!deployment) {
     throw new Error(
@@ -252,19 +252,19 @@ export function getContractAddresses(
   };
 }
 
-export function getFhevmContractAddresses(
+export function getConfidentialContractAddresses(
   networkOrChainId: NetworkName | number,
   options?: {
     prefer?: NetworkName;
-    overrides?: Partial<FhevmContractAddresses>;
+    overrides?: Partial<ConfidentialContractAddresses>;
   },
-): FhevmContractAddresses {
+): ConfidentialContractAddresses {
   const network = normalizeNetwork(networkOrChainId, options?.prefer);
   const contracts = getContractAddresses(network, {
     overrides: options?.overrides,
   });
 
-  return requireAddressMap(contracts, fhevmContractNames, network);
+  return requireAddressMap(contracts, confidentialContractNames, network);
 }
 
 export function getIdentityRegistryMirrorAddress(
@@ -307,11 +307,11 @@ function resolveClientChainId(
 
 export function getIdentityRegistry(
   client: Client,
-  options?: ContractClientOptions<FhevmContractAddresses>,
+  options?: ContractClientOptions<ConfidentialContractAddresses>,
 ) {
   const address =
     options?.address ??
-    getFhevmContractAddresses(resolveClientChainId(client, options?.network), {
+    getConfidentialContractAddresses(resolveClientChainId(client, options?.network), {
       prefer: options?.prefer,
       overrides: options?.overrides,
     }).IdentityRegistry;

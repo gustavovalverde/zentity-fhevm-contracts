@@ -33,7 +33,7 @@ function readAddress(contractName: ContractName): string | null {
 const envPrefixByNetwork: Record<NetworkName, string> = {
   hardhat: "LOCAL_",
   localhost: "LOCAL_",
-  sepolia: "FHEVM_",
+  sepolia: "CONFIDENTIAL_CHAIN_",
   baseSepolia: "BASE_SEPOLIA_",
 };
 

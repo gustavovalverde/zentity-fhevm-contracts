@@ -2,7 +2,7 @@
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.27;
 
-import {FHE, euint8, euint16, ebool, externalEuint8, externalEuint16, externalEbool} from "@fhevm/solidity/lib/FHE.sol";
+import {FHE, euint8, euint16, ebool} from "@fhevm/solidity/lib/FHE.sol";
 import {ZamaConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -149,11 +149,7 @@ contract IdentityRegistry is
         bytes32 consentS,
         uint8 consentAttributeMask,
         uint256 consentDeadline,
-        externalEuint8 encBirthYearOffset,
-        externalEuint16 encCountryCode,
-        externalEuint8 encComplianceLevel,
-        externalEbool encIsBlacklisted,
-        bytes calldata inputProof
+        EncryptedIdentityAttributes calldata encryptedAttributes
     ) external {
         if (block.timestamp > permit.deadline) revert PermitExpired();
 
@@ -170,7 +166,7 @@ contract IdentityRegistry is
         revisions[msg.sender] = targetRevision;
 
         // Convert and store FHE-encrypted values
-        _storeEncryptedValues(encBirthYearOffset, encCountryCode, encComplianceLevel, encIsBlacklisted, inputProof);
+        _storeEncryptedValues(encryptedAttributes);
 
         // Store attestation metadata
         latestAttestationId++;
@@ -242,17 +238,17 @@ contract IdentityRegistry is
     }
 
     /// @dev Convert external encrypted inputs, store, and grant ACL permissions
-    function _storeEncryptedValues(
-        externalEuint8 encBirthYearOffset,
-        externalEuint16 encCountryCode,
-        externalEuint8 encComplianceLevel,
-        externalEbool encIsBlacklisted,
-        bytes calldata inputProof
-    ) internal {
-        euint8 encByo = FHE.fromExternal(encBirthYearOffset, inputProof);
-        euint16 encCc = FHE.fromExternal(encCountryCode, inputProof);
-        euint8 encCl = FHE.fromExternal(encComplianceLevel, inputProof);
-        ebool encBl = FHE.fromExternal(encIsBlacklisted, inputProof);
+    function _storeEncryptedValues(EncryptedIdentityAttributes calldata encryptedAttributes) internal {
+        euint8 encByo = FHE.fromExternal(
+            encryptedAttributes.birthYearOffset,
+            encryptedAttributes.inputProof
+        );
+        euint16 encCc = FHE.fromExternal(encryptedAttributes.countryCode, encryptedAttributes.inputProof);
+        euint8 encCl = FHE.fromExternal(
+            encryptedAttributes.complianceLevel,
+            encryptedAttributes.inputProof
+        );
+        ebool encBl = FHE.fromExternal(encryptedAttributes.isBlacklisted, encryptedAttributes.inputProof);
 
         birthYearOffsets[msg.sender] = encByo;
         countryCodes[msg.sender] = encCc;

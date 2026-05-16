@@ -31,14 +31,17 @@ for (const envFile of envFiles) {
 
 const MNEMONIC =
   process.env.MNEMONIC || "test test test test test test test test test test test junk";
-const FHEVM_PRIVATE_KEY =
-  process.env.FHEVM_PRIVATE_KEY ??
+const CONFIDENTIAL_CHAIN_DEPLOYER_PRIVATE_KEY =
+  process.env.CONFIDENTIAL_CHAIN_DEPLOYER_PRIVATE_KEY ??
   "0x0000000000000000000000000000000000000000000000000000000000000001";
-const FHEVM_RPC_URL = process.env.FHEVM_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com";
+const CONFIDENTIAL_CHAIN_RPC_URL =
+  process.env.CONFIDENTIAL_CHAIN_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com";
 const BASE_SEPOLIA_RPC_URL = process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org";
 const BASE_SEPOLIA_PRIVATE_KEY =
   process.env.BASE_SEPOLIA_PRIVATE_KEY ??
   "0x0000000000000000000000000000000000000000000000000000000000000001";
+const LOCAL_RPC_URL =
+  process.env.LOCAL_RPC_URL || process.env.NEXT_PUBLIC_LOCAL_RPC_URL || "http://127.0.0.1:8545";
 
 const config: HardhatUserConfig = {
   namedAccounts: {
@@ -67,11 +70,11 @@ const config: HardhatUserConfig = {
       chainId: 31337,
     },
     localhost: {
-      url: "http://127.0.0.1:8545",
+      url: LOCAL_RPC_URL,
     },
     sepolia: {
-      url: FHEVM_RPC_URL,
-      accounts: [FHEVM_PRIVATE_KEY],
+      url: CONFIDENTIAL_CHAIN_RPC_URL,
+      accounts: [CONFIDENTIAL_CHAIN_DEPLOYER_PRIVATE_KEY],
       chainId: 11155111,
     },
     baseSepolia: {

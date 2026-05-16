@@ -50,7 +50,7 @@
     "verify:full": "bun run verify && bun run test:mocked",
     "deploy:mocked": "hardhat deploy --network hardhat",
     "deploy:local": "hardhat deploy --network localhost && DEPLOYMENT_VALIDATION_WRITES=true hardhat run scripts/validate-deployments.ts --network localhost",
-    "deploy:sepolia": "hardhat deploy --network sepolia --tags Fhevm",
+    "deploy:sepolia": "hardhat deploy --network sepolia --tags Confidential",
     "deploy:base-sepolia": "hardhat deploy --config hardhat.base.config.ts --network baseSepolia --tags IdentityRegistryMirror && hardhat run --config hardhat.base.config.ts scripts/validate-deployments.ts --network baseSepolia",
     "validate:local": "DEPLOYMENT_VALIDATION_WRITES=true hardhat run scripts/validate-deployments.ts --network localhost",
     "validate:sepolia": "hardhat run scripts/validate-deployments.ts --network sepolia",
@@ -104,6 +104,7 @@
     "url": "git+https://github.com/gustavovalverde/zentity-fhevm-contracts.git"
   },
   "keywords": [
+    "confidential",
     "fhevm",
     "fhe",
     "zama",

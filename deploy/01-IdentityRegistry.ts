@@ -3,13 +3,7 @@ import type { DeployFunction } from "hardhat-deploy/types";
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deployer } = await hre.getNamedAccounts();
-  const { deploy, save, getOrNull } = hre.deployments;
-
-  const existing = await getOrNull("IdentityRegistry");
-  if (existing) {
-    console.log(`  IdentityRegistry already deployed at ${existing.address}`);
-    return;
-  }
+  const { deploy, save } = hre.deployments;
 
   const implementation = await deploy("IdentityRegistry_Implementation", {
     contract: "IdentityRegistry",
@@ -41,4 +35,4 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
 export default func;
 func.id = "deploy_identity_registry";
-func.tags = ["Fhevm", "IdentityRegistry"];
+func.tags = ["Confidential", "IdentityRegistry"];

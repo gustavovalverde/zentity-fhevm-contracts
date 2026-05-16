@@ -1,8 +1,8 @@
 import hre from "hardhat";
 import {
   type ContractName,
+  confidentialContractNames,
   contractNames,
-  fhevmContractNames,
   isNetworkName,
   mirrorContractNames,
   type NetworkName,
@@ -31,7 +31,7 @@ function getExpectedContractNames(network: NetworkName): readonly ContractName[]
   if (network === "baseSepolia") {
     return mirrorContractNames;
   }
-  return fhevmContractNames;
+  return confidentialContractNames;
 }
 
 function requireDeploymentRecord(

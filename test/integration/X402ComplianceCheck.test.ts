@@ -21,6 +21,21 @@ const PERMIT_TYPES = {
   ],
 };
 
+interface EncryptedInputResult {
+  handles: readonly Uint8Array[];
+  inputProof: Uint8Array;
+}
+
+function buildEncryptedIdentityAttributes(encryptedInput: EncryptedInputResult) {
+  return {
+    birthYearOffset: encryptedInput.handles[0],
+    countryCode: encryptedInput.handles[1],
+    complianceLevel: encryptedInput.handles[2],
+    isBlacklisted: encryptedInput.handles[3],
+    inputProof: encryptedInput.inputProof,
+  };
+}
+
 describe("x402 Compliance Oracle", () => {
   let registry: any;
   let facilitator: any;
@@ -76,11 +91,7 @@ describe("x402 Compliance Oracle", () => {
         hre.ethers.ZeroHash,
         0,
         0,
-        encryptedInput.handles[0],
-        encryptedInput.handles[1],
-        encryptedInput.handles[2],
-        encryptedInput.handles[3],
-        encryptedInput.inputProof,
+        buildEncryptedIdentityAttributes(encryptedInput),
       );
   }
 

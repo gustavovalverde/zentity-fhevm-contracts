@@ -4,7 +4,7 @@
  *         with EIP-712 permits, per-attribute grants, and x402 compliance surface
  */
 
-import { FhevmType } from "@fhevm/hardhat-plugin";
+import { FhevmType as EncryptedValueType } from "@fhevm/hardhat-plugin";
 import type { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { expect } from "chai";
 import hre from "hardhat";
@@ -33,6 +33,21 @@ const CONSENT_TYPES = {
     { name: "deadline", type: "uint256" },
   ],
 };
+
+interface EncryptedInputResult {
+  handles: readonly Uint8Array[];
+  inputProof: Uint8Array;
+}
+
+function buildEncryptedIdentityAttributes(encryptedInput: EncryptedInputResult) {
+  return {
+    birthYearOffset: encryptedInput.handles[0],
+    countryCode: encryptedInput.handles[1],
+    complianceLevel: encryptedInput.handles[2],
+    isBlacklisted: encryptedInput.handles[3],
+    inputProof: encryptedInput.inputProof,
+  };
+}
 
 describe("IdentityRegistry", () => {
   let registry: Awaited<ReturnType<typeof deployProxy>>;
@@ -140,11 +155,7 @@ describe("IdentityRegistry", () => {
         hre.ethers.ZeroHash,
         0,
         0,
-        encryptedInput.handles[0],
-        encryptedInput.handles[1],
-        encryptedInput.handles[2],
-        encryptedInput.handles[3],
-        encryptedInput.inputProof,
+        buildEncryptedIdentityAttributes(encryptedInput),
       );
   }
 
@@ -261,11 +272,7 @@ describe("IdentityRegistry", () => {
             hre.ethers.ZeroHash,
             0,
             0,
-            encryptedInput.handles[0],
-            encryptedInput.handles[1],
-            encryptedInput.handles[2],
-            encryptedInput.handles[3],
-            encryptedInput.inputProof,
+            buildEncryptedIdentityAttributes(encryptedInput),
           ),
       )
         .to.emit(registry, "IdentityAttested")
@@ -304,11 +311,7 @@ describe("IdentityRegistry", () => {
           hre.ethers.ZeroHash,
           0,
           0,
-          encryptedInput.handles[0],
-          encryptedInput.handles[1],
-          encryptedInput.handles[2],
-          encryptedInput.handles[3],
-          encryptedInput.inputProof,
+          buildEncryptedIdentityAttributes(encryptedInput),
         );
 
       expect(await registry.revisions(user1.address)).to.equal(revBefore + 1n);
@@ -346,11 +349,7 @@ describe("IdentityRegistry", () => {
             hre.ethers.ZeroHash,
             0,
             0,
-            encryptedInput.handles[0],
-            encryptedInput.handles[1],
-            encryptedInput.handles[2],
-            encryptedInput.handles[3],
-            encryptedInput.inputProof,
+            buildEncryptedIdentityAttributes(encryptedInput),
           ),
       ).to.be.revertedWithCustomError(registry, "PermitExpired");
     });
@@ -376,11 +375,7 @@ describe("IdentityRegistry", () => {
             hre.ethers.ZeroHash,
             0,
             0,
-            encryptedInput.handles[0],
-            encryptedInput.handles[1],
-            encryptedInput.handles[2],
-            encryptedInput.handles[3],
-            encryptedInput.inputProof,
+            buildEncryptedIdentityAttributes(encryptedInput),
           ),
       ).to.be.revertedWithCustomError(registry, "InvalidPermit");
     });
@@ -420,11 +415,7 @@ describe("IdentityRegistry", () => {
             hre.ethers.ZeroHash,
             0,
             0,
-            encryptedInput.handles[0],
-            encryptedInput.handles[1],
-            encryptedInput.handles[2],
-            encryptedInput.handles[3],
-            encryptedInput.inputProof,
+            buildEncryptedIdentityAttributes(encryptedInput),
           ),
       ).to.be.revertedWithCustomError(registry, "InvalidPermit");
 
@@ -456,11 +447,7 @@ describe("IdentityRegistry", () => {
           consent.s,
           consent.attributeMask,
           consent.deadline,
-          encryptedInput.handles[0],
-          encryptedInput.handles[1],
-          encryptedInput.handles[2],
-          encryptedInput.handles[3],
-          encryptedInput.inputProof,
+          buildEncryptedIdentityAttributes(encryptedInput),
         );
 
       expect(await registry.revisions(consentUser.address)).to.equal(targetRevision);
@@ -472,7 +459,7 @@ describe("IdentityRegistry", () => {
     it("should allow user to read their compliance level", async () => {
       const encryptedCompliance = await registry.connect(user1).getComplianceLevel(user1.address);
       const complianceLevel = await hre.fhevm.userDecryptEuint(
-        FhevmType.euint8,
+        EncryptedValueType.euint8,
         encryptedCompliance,
         proxyAddress,
         user1,
@@ -524,7 +511,7 @@ describe("IdentityRegistry", () => {
         .connect(verifier)
         .getComplianceLevel(user1.address);
       const complianceLevel = await hre.fhevm.userDecryptEuint(
-        FhevmType.euint8,
+        EncryptedValueType.euint8,
         encryptedCompliance,
         proxyAddress,
         verifier,

@@ -21,6 +21,28 @@ const PERMIT_TYPES = {
   ],
 };
 
+interface EncryptedInputResult {
+  handles: readonly Uint8Array[];
+  inputProof: Uint8Array;
+}
+
+function buildEncryptedIdentityAttributes(encryptedInput: EncryptedInputResult) {
+  return {
+    birthYearOffset: encryptedInput.handles[0],
+    countryCode: encryptedInput.handles[1],
+    complianceLevel: encryptedInput.handles[2],
+    isBlacklisted: encryptedInput.handles[3],
+    inputProof: encryptedInput.inputProof,
+  };
+}
+
+function buildEncryptedTokenAmount(encryptedInput: EncryptedInputResult) {
+  return {
+    amount: encryptedInput.handles[0],
+    inputProof: encryptedInput.inputProof,
+  };
+}
+
 describe("Full Integration Flow", () => {
   let registry: any;
   let token: any;
@@ -117,11 +139,7 @@ describe("Full Integration Flow", () => {
         hre.ethers.ZeroHash,
         0,
         0,
-        encryptedInput.handles[0],
-        encryptedInput.handles[1],
-        encryptedInput.handles[2],
-        encryptedInput.handles[3],
-        encryptedInput.inputProof,
+        buildEncryptedIdentityAttributes(encryptedInput),
       );
   }
 
@@ -173,11 +191,7 @@ describe("Full Integration Flow", () => {
 
     await token
       .connect(alice)
-      ["transfer(address,bytes32,bytes)"](
-        bob.address,
-        encryptedInput.handles[0],
-        encryptedInput.inputProof,
-      );
+      .transferConfidential(bob.address, buildEncryptedTokenAmount(encryptedInput));
   });
 
   it("should allow Alice to self-revoke", async () => {
@@ -200,11 +214,7 @@ describe("Full Integration Flow", () => {
     // This should NOT revert — it silently transfers 0
     await token
       .connect(alice)
-      ["transfer(address,bytes32,bytes)"](
-        bob.address,
-        encryptedInput.handles[0],
-        encryptedInput.inputProof,
-      );
+      .transferConfidential(bob.address, buildEncryptedTokenAmount(encryptedInput));
 
     // Token still exists (totalSupply unchanged)
     expect(await token.totalSupply()).to.equal(5n * 10n ** 18n);

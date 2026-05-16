@@ -28,5 +28,5 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
 export default func;
 func.id = "deploy_compliance_rules";
-func.tags = ["Fhevm", "ComplianceRules"];
+func.tags = ["Confidential", "ComplianceRules"];
 func.dependencies = ["IdentityRegistry"];

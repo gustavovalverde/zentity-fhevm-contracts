@@ -3,14 +3,8 @@ import type { DeployFunction } from "hardhat-deploy/types";
 
 const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { deployments, getNamedAccounts, ethers } = hre;
-  const { deploy, getOrNull, save } = deployments;
+  const { deploy, save } = deployments;
   const { deployer } = await getNamedAccounts();
-
-  const existing = await getOrNull("IdentityRegistryMirror");
-  if (existing) {
-    console.log(`  IdentityRegistryMirror already deployed at ${existing.address}`);
-    return;
-  }
 
   console.log("Deploying IdentityRegistryMirror...");
 
@@ -18,8 +12,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     throw new Error("BASE_SEPOLIA_PRIVATE_KEY is required for Base Sepolia mirror deployment");
   }
   const registrar =
-    process.env.BASE_SEPOLIA_REGISTRAR_ADDRESS ??
-    (hre.network.name === "baseSepolia" ? undefined : deployer);
+    hre.network.name === "baseSepolia" ? process.env.BASE_SEPOLIA_REGISTRAR_ADDRESS : deployer;
   if (!registrar) {
     throw new Error(
       "BASE_SEPOLIA_REGISTRAR_ADDRESS is required for Base Sepolia mirror deployment",

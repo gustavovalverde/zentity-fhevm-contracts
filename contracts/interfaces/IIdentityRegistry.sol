@@ -55,6 +55,15 @@ interface IIdentityRegistry {
         bytes32 s;
     }
 
+    /// @notice User-encrypted identity attributes bound to this registry and caller
+    struct EncryptedIdentityAttributes {
+        externalEuint8 birthYearOffset;
+        externalEuint16 countryCode;
+        externalEuint8 complianceLevel;
+        externalEbool isBlacklisted;
+        bytes inputProof;
+    }
+
     // ============ Errors ============
 
     /// @notice Thrown when caller is not an authorized registrar
@@ -93,11 +102,7 @@ interface IIdentityRegistry {
         bytes32 consentS,
         uint8 consentAttributeMask,
         uint256 consentDeadline,
-        externalEuint8 encBirthYearOffset,
-        externalEuint16 encCountryCode,
-        externalEuint8 encComplianceLevel,
-        externalEbool encIsBlacklisted,
-        bytes calldata inputProof
+        EncryptedIdentityAttributes calldata encryptedAttributes
     ) external;
 
     // ============ Revocation ============

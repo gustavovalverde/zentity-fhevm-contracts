@@ -26,7 +26,7 @@ changesets consistent.
 4) **Sepolia deployment (when required)**
    - Only required when you intend to update on-chain addresses in
      `deployments/sepolia/*.json`.
-   - Ensure `.env` / `.env.local` are set (`FHEVM_RPC_URL`, `PRIVATE_KEY`, etc.).
+   - Ensure `.env` / `.env.local` are set (`CONFIDENTIAL_CHAIN_RPC_URL`, `CONFIDENTIAL_CHAIN_DEPLOYER_PRIVATE_KEY`, etc.).
    - Run:
      - `bun run deploy:sepolia`
      - `bun run test:sepolia`

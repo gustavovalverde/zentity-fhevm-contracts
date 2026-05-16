@@ -4,8 +4,8 @@ import { createPublicClient, http } from "viem";
 import {
   chainIdByNetwork,
   deployments,
+  getConfidentialContractAddresses,
   getContractAddresses,
-  getFhevmContractAddresses,
   getIdentityRegistryMirror,
   getIdentityRegistryMirrorAddress,
   getNetworkName,
@@ -37,7 +37,7 @@ describe("address helpers", () => {
   });
 
   it("overrides take precedence over deployment addresses", () => {
-    const addresses = getFhevmContractAddresses("sepolia", {
+    const addresses = getConfidentialContractAddresses("sepolia", {
       overrides: {
         IdentityRegistry: "0x0000000000000000000000000000000000000099",
       },
@@ -47,7 +47,7 @@ describe("address helpers", () => {
   });
 
   it("resolves by chainId with overrides", () => {
-    const addresses = getFhevmContractAddresses(11155111, {
+    const addresses = getConfidentialContractAddresses(11155111, {
       overrides: {
         CompliantERC20: "0x0000000000000000000000000000000000000042",
       },

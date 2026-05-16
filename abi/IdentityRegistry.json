@@ -512,29 +512,36 @@
         "type": "uint256"
       },
       {
-        "internalType": "externalEuint8",
-        "name": "encBirthYearOffset",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "externalEuint16",
-        "name": "encCountryCode",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "externalEuint8",
-        "name": "encComplianceLevel",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "externalEbool",
-        "name": "encIsBlacklisted",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bytes",
-        "name": "inputProof",
-        "type": "bytes"
+        "components": [
+          {
+            "internalType": "externalEuint8",
+            "name": "birthYearOffset",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "externalEuint16",
+            "name": "countryCode",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "externalEuint8",
+            "name": "complianceLevel",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "externalEbool",
+            "name": "isBlacklisted",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes",
+            "name": "inputProof",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct IIdentityRegistry.EncryptedIdentityAttributes",
+        "name": "encryptedAttributes",
+        "type": "tuple"
       }
     ],
     "name": "attestWithPermit",

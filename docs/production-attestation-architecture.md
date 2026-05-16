@@ -323,11 +323,7 @@ One possible production shape is:
 function publishAttestation(
     AttestationEnvelope calldata envelope,
     UserConsent calldata consent,
-    externalEuint8 encBirthYearOffset,
-    externalEuint16 encCountryCode,
-    externalEuint8 encComplianceLevel,
-    externalEbool encIsBlacklisted,
-    bytes calldata inputProof
+    EncryptedIdentityAttributes calldata encryptedAttributes
 ) external;
 ```
 

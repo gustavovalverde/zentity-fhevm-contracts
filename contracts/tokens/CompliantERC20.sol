@@ -23,6 +23,11 @@ contract CompliantERC20 is Ownable2Step, ZamaEthereumConfig {
 
     IComplianceRules public complianceChecker;
 
+    struct EncryptedTokenAmount {
+        externalEuint64 amount;
+        bytes inputProof;
+    }
+
     event Transfer(address indexed from, address indexed to);
     event Approval(address indexed owner, address indexed spender);
     event Mint(address indexed to, uint256 indexed amount);
@@ -66,12 +71,11 @@ contract CompliantERC20 is Ownable2Step, ZamaEthereumConfig {
 
     // ============ Token Functions ============
 
-    function transfer(
+    function transferConfidential(
         address to,
-        externalEuint64 encryptedAmount,
-        bytes calldata inputProof
+        EncryptedTokenAmount calldata encryptedAmount
     ) external returns (bool) {
-        euint64 amount = FHE.fromExternal(encryptedAmount, inputProof);
+        euint64 amount = FHE.fromExternal(encryptedAmount.amount, encryptedAmount.inputProof);
         return _transfer(msg.sender, to, amount);
     }
 
@@ -80,12 +84,11 @@ contract CompliantERC20 is Ownable2Step, ZamaEthereumConfig {
         return _transfer(msg.sender, to, amount);
     }
 
-    function approve(
+    function approveConfidential(
         address spender,
-        externalEuint64 encryptedAmount,
-        bytes calldata inputProof
+        EncryptedTokenAmount calldata encryptedAmount
     ) external returns (bool) {
-        euint64 amount = FHE.fromExternal(encryptedAmount, inputProof);
+        euint64 amount = FHE.fromExternal(encryptedAmount.amount, encryptedAmount.inputProof);
         allowances[msg.sender][spender] = amount;
         FHE.allowThis(amount);
         FHE.allow(amount, msg.sender);
@@ -94,13 +97,12 @@ contract CompliantERC20 is Ownable2Step, ZamaEthereumConfig {
         return true;
     }
 
-    function transferFrom(
+    function transferFromConfidential(
         address from,
         address to,
-        externalEuint64 encryptedAmount,
-        bytes calldata inputProof
+        EncryptedTokenAmount calldata encryptedAmount
     ) external returns (bool) {
-        euint64 amount = FHE.fromExternal(encryptedAmount, inputProof);
+        euint64 amount = FHE.fromExternal(encryptedAmount.amount, encryptedAmount.inputProof);
 
         ebool hasAllowance = FHE.le(amount, allowances[from][msg.sender]);
         euint64 newAllowance = FHE.select(

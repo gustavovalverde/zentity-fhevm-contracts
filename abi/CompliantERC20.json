@@ -222,17 +222,24 @@
         "type": "address"
       },
       {
-        "internalType": "externalEuint64",
+        "components": [
+          {
+            "internalType": "externalEuint64",
+            "name": "amount",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes",
+            "name": "inputProof",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct CompliantERC20.EncryptedTokenAmount",
         "name": "encryptedAmount",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bytes",
-        "name": "inputProof",
-        "type": "bytes"
+        "type": "tuple"
       }
     ],
-    "name": "approve",
+    "name": "approveConfidential",
     "outputs": [
       {
         "internalType": "bool",
@@ -412,14 +419,9 @@
         "type": "address"
       },
       {
-        "internalType": "externalEuint64",
-        "name": "encryptedAmount",
+        "internalType": "euint64",
+        "name": "amount",
         "type": "bytes32"
-      },
-      {
-        "internalType": "bytes",
-        "name": "inputProof",
-        "type": "bytes"
       }
     ],
     "name": "transfer",
@@ -441,12 +443,24 @@
         "type": "address"
       },
       {
-        "internalType": "euint64",
-        "name": "amount",
-        "type": "bytes32"
+        "components": [
+          {
+            "internalType": "externalEuint64",
+            "name": "amount",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes",
+            "name": "inputProof",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct CompliantERC20.EncryptedTokenAmount",
+        "name": "encryptedAmount",
+        "type": "tuple"
       }
     ],
-    "name": "transfer",
+    "name": "transferConfidential",
     "outputs": [
       {
         "internalType": "bool",
@@ -470,17 +484,24 @@
         "type": "address"
       },
       {
-        "internalType": "externalEuint64",
+        "components": [
+          {
+            "internalType": "externalEuint64",
+            "name": "amount",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes",
+            "name": "inputProof",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct CompliantERC20.EncryptedTokenAmount",
         "name": "encryptedAmount",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bytes",
-        "name": "inputProof",
-        "type": "bytes"
+        "type": "tuple"
       }
     ],
-    "name": "transferFrom",
+    "name": "transferFromConfidential",
     "outputs": [
       {
         "internalType": "bool",

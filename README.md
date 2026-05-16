@@ -6,7 +6,7 @@ Smart contracts, ABIs, deployment manifests, and viem helpers for Zentity's on-c
 
 This package contains two contract families:
 
-- **fhEVM contracts on Ethereum Sepolia**: `IdentityRegistry`, `ComplianceRules`, and `CompliantERC20` store encrypted identity attributes and evaluate encrypted compliance predicates.
+- **Zama confidential contracts on Ethereum Sepolia**: `IdentityRegistry`, `ComplianceRules`, and `CompliantERC20` store encrypted identity attributes and evaluate encrypted compliance predicates.
 - **Base mirror contracts on Base Sepolia**: `IdentityRegistryMirror` stores only public, level-aware compliance state for low-latency `isCompliant(address,uint8)` reads.
 
 The mirror is intentionally plaintext and narrow. It stores no PII, proof hashes, FHE ciphertext handles, or commitments.
@@ -57,7 +57,7 @@ import { identityRegistryMirrorAbi as mirrorAbi } from "@zentity/contracts/abi";
 | Network | Chain ID | Contract family | Notes |
 |---|---:|---|---|
 | Hardhat | `31337` | fhEVM mocks | Local development |
-| Ethereum Sepolia | `11155111` | fhEVM | Encrypted registry and compliance checks |
+| Ethereum Sepolia | `11155111` | Zama confidential | Encrypted registry and compliance checks |
 | Base Sepolia | `84532` | Mirror | Plaintext `IdentityRegistryMirror` |
 
 ## Development
@@ -79,11 +79,11 @@ bun run validate:local
 
 ## Deploy
 
-### Ethereum Sepolia fhEVM contracts
+### Ethereum Sepolia confidential contracts
 
 ```bash
-FHEVM_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com \
-FHEVM_PRIVATE_KEY=0x... \
+CONFIDENTIAL_CHAIN_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com \
+CONFIDENTIAL_CHAIN_DEPLOYER_PRIVATE_KEY=0x... \
 bun run deploy:sepolia
 ```
 
@@ -130,7 +130,7 @@ The stable TypeScript surface is:
 - `identityRegistryAbi`, `identityRegistryMirrorAbi`, `complianceRulesAbi`, `compliantErc20Abi`
 - `deployments`, keyed by chain id
 - `chainIdByNetwork`
-- `getFhevmContractAddresses()`
+- `getConfidentialContractAddresses()`
 - `getIdentityRegistryMirrorAddress()`
 - `getIdentityRegistry()`, `getIdentityRegistryMirror()`
 - `attestedOnlyLevel`, `complianceLevels`

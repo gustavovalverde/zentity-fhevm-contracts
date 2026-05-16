@@ -3,7 +3,7 @@
  * and the ABI exporter. Kept ABI-free so it can run before artifacts exist.
  */
 
-export const fhevmContractNames = [
+export const confidentialContractNames = [
   "IdentityRegistry",
   "ComplianceRules",
   "CompliantERC20",
@@ -11,9 +11,9 @@ export const fhevmContractNames = [
 
 export const mirrorContractNames = ["IdentityRegistryMirror"] as const;
 
-export const contractNames = [...fhevmContractNames, ...mirrorContractNames] as const;
+export const contractNames = [...confidentialContractNames, ...mirrorContractNames] as const;
 
-export type FhevmContractName = (typeof fhevmContractNames)[number];
+export type ConfidentialContractName = (typeof confidentialContractNames)[number];
 export type MirrorContractName = (typeof mirrorContractNames)[number];
 export type ContractName = (typeof contractNames)[number];
 
@@ -31,7 +31,7 @@ const networkNames = Object.keys(chainIdByNetwork);
 
 /** Which contracts a network is expected to host. */
 export function getRequiredContracts(network: NetworkName): readonly ContractName[] {
-  return network === "baseSepolia" ? mirrorContractNames : fhevmContractNames;
+  return network === "baseSepolia" ? mirrorContractNames : confidentialContractNames;
 }
 
 export function isNetworkName(value: string): value is NetworkName {
