@@ -45,12 +45,22 @@ const compliant = await mirror.read.isCompliant([
 ]);
 ```
 
-Direct ABI imports use lower-camel names:
+`compliant` is a `boolean`. `getIdentityRegistryMirror()` and `getIdentityRegistry()` return viem contracts typed by their ABIs, so `read`, `simulate`, and `write` only accept the contract's functions and arguments.
+
+The ABIs are exported as const-typed arrays with lower-camel names, so viem and wagmi infer function names, arguments, and return types without casts:
 
 ```ts
-import { identityRegistryAbi, identityRegistryMirrorAbi } from "@zentity/contracts";
-import { identityRegistryMirrorAbi as mirrorAbi } from "@zentity/contracts/abi";
+import { identityRegistryMirrorAbi } from "@zentity/contracts";
+
+const fullyCompliant = await client.readContract({
+  address: mirror.address,
+  abi: identityRegistryMirrorAbi,
+  functionName: "isCompliant", // must name a view function in the ABI
+  args: ["0x0000000000000000000000000000000000000001", complianceLevels.full],
+}); // boolean
 ```
+
+The same typed ABIs are available from `@zentity/contracts/abi`. The raw JSON ABIs stay available at `@zentity/contracts/abi/<ContractName>`, for example `@zentity/contracts/abi/IdentityRegistryMirror`; JSON imports are not const-typed.
 
 ## Networks
 
@@ -127,12 +137,12 @@ deployments.
 
 The stable TypeScript surface is:
 
-- `identityRegistryAbi`, `identityRegistryMirrorAbi`, `complianceRulesAbi`, `compliantErc20Abi`
+- `identityRegistryAbi`, `identityRegistryMirrorAbi`, `complianceRulesAbi`, `compliantErc20Abi` (const-typed)
 - `deployments`, keyed by chain id
 - `chainIdByNetwork`
 - `getConfidentialContractAddresses()`
 - `getIdentityRegistryMirrorAddress()`
-- `getIdentityRegistry()`, `getIdentityRegistryMirror()`
+- `getIdentityRegistry()`, `getIdentityRegistryMirror()`, returning `IdentityRegistryContract` and `IdentityRegistryMirrorContract`
 - `attestedOnlyLevel`, `complianceLevels`
 
 Generated TypeChain sources and Hardhat deployment internals are not part of the public package API.

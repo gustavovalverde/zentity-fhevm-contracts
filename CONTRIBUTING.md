@@ -12,18 +12,24 @@ changesets consistent.
    - Verify:
      - `bunx changeset status`
 
-2) **Run tests**
+2) **Regenerate ABIs after contract changes**
+   - `bun run compile && bun run export-abi`
+   - This writes `abi/<Contract>.json` and the const-typed `src/abi/<Contract>.ts`
+     modules. Both are generated; commit them and never edit them by hand.
+     `bun run test` fails when they no longer match the compiled contracts.
+
+3) **Run tests**
    - Local mocked tests:
      - `bun run test:mocked`
    - If your change affects deployments or on-chain behavior:
      - `bun run deploy:mocked`
 
-3) **Run lint + typecheck + build**
+4) **Run lint + typecheck + build**
    - `bun run lint`
    - `bun run typecheck`
    - `bun run build`
 
-4) **Sepolia deployment (when required)**
+5) **Sepolia deployment (when required)**
    - Only required when you intend to update on-chain addresses in
      `deployments/sepolia/*.json`.
    - Ensure `.env` / `.env.local` are set (`CONFIDENTIAL_CHAIN_RPC_URL`, `CONFIDENTIAL_CHAIN_DEPLOYER_PRIVATE_KEY`, etc.).

@@ -4,14 +4,16 @@
  * ABIs, deployments, and typed helpers for Zentity smart contracts.
  */
 
-import { type Client, getContract } from "viem";
-import complianceRulesAbiJson from "../abi/ComplianceRules.json";
-import compliantErc20AbiJson from "../abi/CompliantERC20.json";
-import identityRegistryAbiJson from "../abi/IdentityRegistry.json";
-import identityRegistryMirrorAbiJson from "../abi/IdentityRegistryMirror.json";
+import { type Client, type GetContractReturnType, getContract } from "viem";
 import baseSepoliaAddressesJson from "../deployments/baseSepolia/addresses.json";
 import hardhatAddressesJson from "../deployments/hardhat/addresses.json";
 import sepoliaAddressesJson from "../deployments/sepolia/addresses.json";
+import {
+  complianceRulesAbi,
+  compliantErc20Abi,
+  identityRegistryAbi,
+  identityRegistryMirrorAbi,
+} from "./abi";
 import {
   type ChainId,
   type ConfidentialContractName,
@@ -147,19 +149,21 @@ function toAddresses(source: AddressesFile): ContractAddresses {
   ) as ContractAddresses;
 }
 
-export const abis = {
-  IdentityRegistry: identityRegistryAbiJson,
-  ComplianceRules: complianceRulesAbiJson,
-  CompliantERC20: compliantErc20AbiJson,
-  IdentityRegistryMirror: identityRegistryMirrorAbiJson,
-} as const;
+export { complianceRulesAbi, compliantErc20Abi, identityRegistryAbi, identityRegistryMirrorAbi };
 
-export type AbiMap = typeof abis;
+export type AbiMap = {
+  readonly IdentityRegistry: typeof identityRegistryAbi;
+  readonly ComplianceRules: typeof complianceRulesAbi;
+  readonly CompliantERC20: typeof compliantErc20Abi;
+  readonly IdentityRegistryMirror: typeof identityRegistryMirrorAbi;
+};
 
-export const identityRegistryAbi = abis.IdentityRegistry;
-export const complianceRulesAbi = abis.ComplianceRules;
-export const compliantErc20Abi = abis.CompliantERC20;
-export const identityRegistryMirrorAbi = abis.IdentityRegistryMirror;
+export const abis: AbiMap = {
+  IdentityRegistry: identityRegistryAbi,
+  ComplianceRules: complianceRulesAbi,
+  CompliantERC20: compliantErc20Abi,
+  IdentityRegistryMirror: identityRegistryMirrorAbi,
+};
 
 export const attestedOnlyLevel = 0;
 
@@ -170,7 +174,9 @@ export const complianceLevels = {
   chip: 4,
 } as const;
 
-export function getAbi(name: ContractName) {
+export function getAbi<TContractName extends ContractName>(
+  name: TContractName,
+): AbiMap[TContractName] {
   return abis[name];
 }
 
@@ -305,10 +311,20 @@ function resolveClientChainId(
   return chainId;
 }
 
-export function getIdentityRegistry(
-  client: Client,
+export type IdentityRegistryContract<TClient extends Client = Client> = GetContractReturnType<
+  typeof identityRegistryAbi,
+  TClient
+>;
+
+export type IdentityRegistryMirrorContract<TClient extends Client = Client> = GetContractReturnType<
+  typeof identityRegistryMirrorAbi,
+  TClient
+>;
+
+export function getIdentityRegistry<TClient extends Client>(
+  client: TClient,
   options?: ContractClientOptions<ConfidentialContractAddresses>,
-) {
+): IdentityRegistryContract<TClient> {
   const address =
     options?.address ??
     getConfidentialContractAddresses(resolveClientChainId(client, options?.network), {
@@ -323,10 +339,10 @@ export function getIdentityRegistry(
   });
 }
 
-export function getIdentityRegistryMirror(
-  client: Client,
+export function getIdentityRegistryMirror<TClient extends Client>(
+  client: TClient,
   options?: ContractClientOptions<Record<MirrorContractName, string>>,
-) {
+): IdentityRegistryMirrorContract<TClient> {
   const address =
     options?.address ??
     getIdentityRegistryMirrorAddress(resolveClientChainId(client, options?.network), {

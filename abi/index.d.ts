@@ -1,4 +1,2 @@
-export const identityRegistryAbi: unknown;
-export const complianceRulesAbi: unknown;
-export const compliantErc20Abi: unknown;
-export const identityRegistryMirrorAbi: unknown;
+// Forwards to the const-typed ABI modules compiled from src/abi.
+export * from "../dist/abi/index";
