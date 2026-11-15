@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect } from "chai";
 import {
@@ -106,6 +106,22 @@ describe("published ABIs", () => {
     );
     expect(identityRegistryMirrorAbi).to.deep.equal(mirrorJson);
     expect(identityRegistryAbi).to.deep.equal(registryJson);
+  });
+
+  it("has no generated ABI files for contracts that are no longer exported", () => {
+    const onDisk = [
+      ...readdirSync(join(rootDir, "abi"))
+        .filter((name) => name.endsWith(".json"))
+        .map((name) => `abi/${name}`),
+      ...readdirSync(join(rootDir, "src/abi")).map((name) => `src/abi/${name}`),
+    ].sort();
+    const expected = renderAbiFiles()
+      .map((file) => file.path)
+      .sort();
+    expect(
+      onDisk,
+      "Generated ABI files do not match the exported contracts. Remove the leftovers and run `bun run export-abi`.",
+    ).to.deep.equal(expected);
   });
 
   for (const file of renderAbiFiles()) {
