@@ -63,7 +63,7 @@
     "prepublishOnly": "bun run build",
     "ci:version": "changeset version",
     "ci:publish": "changeset publish",
-    "clean": "hardhat clean && rm -rf dist typechain-types abi/*.json",
+    "clean": "hardhat clean && rm -rf dist typechain-types abi/*.json src/abi",
     "prepare": "husky"
   },
   "dependencies": {
