@@ -6,9 +6,15 @@
 import type { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/types";
 import { expect } from "chai";
 import { network } from "hardhat";
-import { encryptIdentityAttributes, encryptTokenAmount } from "../utils/encrypted-inputs.js";
+import {
+  connectEncryptor,
+  encryptIdentityAttributes,
+  encryptTokenAmount,
+} from "../utils/encrypted-inputs.js";
+import { testAccounts } from "../utils/test-accounts.js";
 
 const { ethers, fhevm } = await network.create();
+const encryptor = await connectEncryptor({ ethers, fhevm });
 
 const PERMIT_TYPES = {
   AttestPermit: [
@@ -36,6 +42,7 @@ describe("Full Integration Flow", () => {
   let alice: HardhatEthersSigner;
   let bob: HardhatEthersSigner;
   let domain: any;
+  let releaseAccounts: () => Promise<void>;
 
   async function deployAll() {
     // 1. IdentityRegistry via UUPS proxy
@@ -104,7 +111,7 @@ describe("Full Integration Flow", () => {
     delete (permit as any).user;
     delete (permit as any).nonce;
 
-    const encryptedAttributes = await encryptIdentityAttributes(fhevm, {
+    const encryptedAttributes = await encryptIdentityAttributes(encryptor, {
       contractAddress: registryAddress,
       userAddress: userSigner.address,
       birthYearOffset,
@@ -119,7 +126,9 @@ describe("Full Integration Flow", () => {
   }
 
   before(async () => {
-    [owner, registrar, alice, bob] = await ethers.getSigners();
+    const accounts = await testAccounts(ethers, 4);
+    [owner, registrar, alice, bob] = accounts.signers;
+    releaseAccounts = accounts.release;
     const contracts = await deployAll();
     registry = contracts.reg;
     token = contracts.tok;
@@ -131,6 +140,10 @@ describe("Full Integration Flow", () => {
       chainId: Number(chainId),
       verifyingContract: registryAddress,
     };
+  });
+
+  after(async () => {
+    await releaseAccounts?.();
   });
 
   it("should attest Alice and Bob via permits", async () => {
@@ -160,7 +173,7 @@ describe("Full Integration Flow", () => {
     const tokenAddress = await token.getAddress();
     const amount = 2n * 10n ** 18n;
 
-    const encryptedAmount = await encryptTokenAmount(fhevm, {
+    const encryptedAmount = await encryptTokenAmount(encryptor, {
       contractAddress: tokenAddress,
       userAddress: alice.address,
       amount,
@@ -182,7 +195,7 @@ describe("Full Integration Flow", () => {
     const tokenAddress = await token.getAddress();
     const amount = 1n * 10n ** 18n;
 
-    const encryptedAmount = await encryptTokenAmount(fhevm, {
+    const encryptedAmount = await encryptTokenAmount(encryptor, {
       contractAddress: tokenAddress,
       userAddress: alice.address,
       amount,

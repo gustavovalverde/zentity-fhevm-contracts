@@ -158,9 +158,19 @@ bun run test:local
 bun run validate:sepolia
 ```
 
-The tests cannot run on Sepolia: `@fhevm/hardhat-plugin-v3` encrypts and
-decrypts only on development networks for now
-([plugin note](https://github.com/zama-ai/fhevm-mocks/blob/release/0.13.x/hardhat/v3/fhevm-hardhat-template/pkg/README.md)).
+5) Sepolia integration test (sends transactions):
+
+```bash
+CONFIDENTIAL_CHAIN_DEPLOYER_PRIVATE_KEY=0x... bun run test:sepolia
+```
+
+It deploys a fresh registry, rules contract, and token, then runs the full
+attest, grant, mint, and transfer flow through the Zama testnet relayer.
+`@fhevm/hardhat-plugin-v3` encrypts only on development networks
+([plugin note](https://github.com/zama-ai/fhevm-mocks/blob/release/0.13.x/hardhat/v3/fhevm-hardhat-template/pkg/README.md)),
+so on Sepolia the test encrypts with an `@fhevm/sdk` client instead. The
+deployer funds three temporary accounts for the run and gets their remaining
+balance back at the end.
 
 ## Sepolia faucets
 

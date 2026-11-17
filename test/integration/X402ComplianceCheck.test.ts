@@ -63,7 +63,7 @@ describe("x402 Compliance Oracle", () => {
     delete (permit as any).user;
     delete (permit as any).nonce;
 
-    const encryptedAttributes = await encryptIdentityAttributes(fhevm, {
+    const encryptedAttributes = await encryptIdentityAttributes(fhevm.client, {
       contractAddress: registryAddress,
       userAddress: userSigner.address,
       birthYearOffset: 90,

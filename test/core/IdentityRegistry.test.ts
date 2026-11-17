@@ -126,7 +126,7 @@ describe("IdentityRegistry", () => {
       proofSetHash,
     );
 
-    const encryptedAttributes = await encryptIdentityAttributes(fhevm, {
+    const encryptedAttributes = await encryptIdentityAttributes(fhevm.client, {
       contractAddress: proxyAddress,
       userAddress: userSigner.address,
       birthYearOffset,
@@ -236,7 +236,7 @@ describe("IdentityRegistry", () => {
 
     it("should emit IdentityAttested event", async () => {
       const { permit } = await signPermit(registrar, user2.address, 100, 276, 2, false);
-      const encryptedAttributes = await encryptIdentityAttributes(fhevm, {
+      const encryptedAttributes = await encryptIdentityAttributes(fhevm.client, {
         contractAddress: proxyAddress,
         userAddress: user2.address,
         birthYearOffset: 100,
@@ -270,7 +270,7 @@ describe("IdentityRegistry", () => {
       }
       const revBefore = await registry.revisions(user1.address);
       const { permit } = await signPermit(registrar, user1.address, 90, 840, 3, false);
-      const encryptedAttributes = await encryptIdentityAttributes(fhevm, {
+      const encryptedAttributes = await encryptIdentityAttributes(fhevm.client, {
         contractAddress: proxyAddress,
         userAddress: user1.address,
         birthYearOffset: 90,
@@ -301,7 +301,7 @@ describe("IdentityRegistry", () => {
         1,
         (block?.timestamp ?? 0) - 1,
       );
-      const encryptedAttributes = await encryptIdentityAttributes(fhevm, {
+      const encryptedAttributes = await encryptIdentityAttributes(fhevm.client, {
         contractAddress: proxyAddress,
         userAddress: nonAttested.address,
         birthYearOffset: 90,
@@ -321,7 +321,7 @@ describe("IdentityRegistry", () => {
       const nonAttested = (await ethers.getSigners())[6];
       // Sign with user1 (not a registrar)
       const { permit } = await signPermit(user1, nonAttested.address, 90, 840, 3, false);
-      const encryptedAttributes = await encryptIdentityAttributes(fhevm, {
+      const encryptedAttributes = await encryptIdentityAttributes(fhevm.client, {
         contractAddress: proxyAddress,
         userAddress: nonAttested.address,
         birthYearOffset: 90,
@@ -353,7 +353,7 @@ describe("IdentityRegistry", () => {
       await attestUser(revokable, 90, 840, 3, false);
 
       const { permit } = await signPermit(registrar, revokable.address, 91, 840, 4, false);
-      const encryptedAttributes = await encryptIdentityAttributes(fhevm, {
+      const encryptedAttributes = await encryptIdentityAttributes(fhevm.client, {
         contractAddress: proxyAddress,
         userAddress: revokable.address,
         birthYearOffset: 91,
@@ -382,7 +382,7 @@ describe("IdentityRegistry", () => {
       const { permit } = await signPermit(registrar, consentUser.address, 92, 840, 4, false);
       const consent = await signConsent(consentUser, 0x0f, targetRevision);
 
-      const encryptedAttributes = await encryptIdentityAttributes(fhevm, {
+      const encryptedAttributes = await encryptIdentityAttributes(fhevm.client, {
         contractAddress: proxyAddress,
         userAddress: consentUser.address,
         birthYearOffset: 92,
