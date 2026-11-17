@@ -20,14 +20,14 @@ describe("address helpers", () => {
 
   it("returns sepolia addresses from deployments", () => {
     const addresses = getContractAddresses("sepolia");
-    expect(addresses.IdentityRegistry).to.equal("0xa90723A47A14437500645Ece6049d0128A2f256D");
-    expect(addresses.ComplianceRules).to.equal("0xDea37357418134e1A3ee21FAc2Fe28FD9b9908aa");
-    expect(addresses.CompliantERC20).to.equal("0x39bc2b0717c21b5ac37BE1c552B7F69ce49F28c1");
+    expect(addresses.IdentityRegistry).to.equal("0x79f24b1100691FbE00b338bFB3977a1A7AE742D1");
+    expect(addresses.ComplianceRules).to.equal("0x3685BE535C9b4B5A162a8697DB000461795EFDF7");
+    expect(addresses.CompliantERC20).to.equal("0xd9bD2B8728975Ec090479D38D735e41C19FD5840");
   });
 
   it("returns base sepolia mirror address from deployments", () => {
     expect(getIdentityRegistryMirrorAddress("baseSepolia")).to.equal(
-      "0xa33D1032fdcAA44a56d5372971ecA8e06b86fa14",
+      "0x0CF34291E5Ba44dA4a86927260DEED0cAb80eC16",
     );
   });
 
@@ -43,7 +43,7 @@ describe("address helpers", () => {
       },
     });
     expect(addresses.IdentityRegistry).to.equal("0x0000000000000000000000000000000000000099");
-    expect(addresses.ComplianceRules).to.equal("0xDea37357418134e1A3ee21FAc2Fe28FD9b9908aa");
+    expect(addresses.ComplianceRules).to.equal("0x3685BE535C9b4B5A162a8697DB000461795EFDF7");
   });
 
   it("resolves by chainId with overrides", () => {
@@ -53,19 +53,19 @@ describe("address helpers", () => {
       },
     });
     expect(addresses.CompliantERC20).to.equal("0x0000000000000000000000000000000000000042");
-    expect(addresses.IdentityRegistry).to.equal("0xa90723A47A14437500645Ece6049d0128A2f256D");
+    expect(addresses.IdentityRegistry).to.equal("0x79f24b1100691FbE00b338bFB3977a1A7AE742D1");
   });
 
   it("exports chainId-keyed deployment manifests", () => {
     expect(deployments[chainIdByNetwork.sepolia]?.contracts.IdentityRegistry.address).to.equal(
-      "0xa90723A47A14437500645Ece6049d0128A2f256D",
+      "0x79f24b1100691FbE00b338bFB3977a1A7AE742D1",
     );
     expect(deployments[chainIdByNetwork.hardhat]?.contracts.ComplianceRules.address).to.equal(
       "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
     );
     expect(
       deployments[chainIdByNetwork.baseSepolia]?.contracts.IdentityRegistryMirror.address,
-    ).to.equal("0xa33D1032fdcAA44a56d5372971ecA8e06b86fa14");
+    ).to.equal("0x0CF34291E5Ba44dA4a86927260DEED0cAb80eC16");
   });
 
   it("builds typed viem mirror helpers with address overrides", () => {
