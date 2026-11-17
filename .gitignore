@@ -27,6 +27,7 @@ coverage.json
 deployments/**/solcInputs/
 deployments/localhost/
 ignition/deployments/chain-31337/
+!ignition/deployments/*/artifacts/
 
 # Husky internal
 .husky/_

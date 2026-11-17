@@ -68,9 +68,8 @@ bun run print:deployments sepolia --env
 
 Ignition records the deployment in `ignition/deployments/chain-11155111`; commit
 it. `deploy:sepolia` then writes the published manifest,
-`deployments/sepolia/addresses.json`. The other files in `deployments/sepolia` and
-`deployments/baseSepolia` record the deployments made with hardhat-deploy before
-the move to Ignition.
+`deployments/sepolia/addresses.json`. It does not validate the deployment, so run
+`bun run validate:sepolia` afterwards.
 
 ## Base Sepolia mirror deploy
 
@@ -111,6 +110,10 @@ Print the address:
 ```bash
 bun run print:deployments baseSepolia --env
 ```
+
+Ignition records the deployment in `ignition/deployments/chain-84532`; commit it
+with the manifest that `deploy:base-sepolia` writes,
+`deployments/baseSepolia/addresses.json`.
 
 Configure the web app with the printed mirror address as
 `BASE_SEPOLIA_IDENTITY_REGISTRY_MIRROR`.
