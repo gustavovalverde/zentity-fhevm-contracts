@@ -1,6 +1,6 @@
 {
   "name": "@zentity/contracts",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Zentity smart contracts, ABIs, deployments, and typed helpers",
   "type": "module",
   "main": "dist/index.js",
