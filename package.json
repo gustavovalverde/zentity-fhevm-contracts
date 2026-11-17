@@ -67,7 +67,7 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@fhevm/solidity": "0.9.1",
+    "@fhevm/solidity": "0.13.4",
     "@openzeppelin/confidential-contracts": "0.3.1"
   },
   "devDependencies": {
@@ -75,7 +75,8 @@
     "@changesets/cli": "^2.29.8",
     "@commitlint/cli": "^20.2.0",
     "@commitlint/config-conventional": "^20.2.0",
-    "@fhevm/hardhat-plugin": "0.3.0-3",
+    "@fhevm/hardhat-plugin": "0.13.0-1",
+    "@fhevm/sdk": "0.13.8",
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
     "@nomicfoundation/hardhat-toolbox": "^6.1.0",
     "@openzeppelin/contracts": "^5.4.0",

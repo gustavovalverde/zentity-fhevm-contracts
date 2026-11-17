@@ -22,8 +22,8 @@ const PERMIT_TYPES = {
 };
 
 interface EncryptedInputResult {
-  handles: readonly Uint8Array[];
-  inputProof: Uint8Array;
+  handles: readonly string[];
+  inputProof: string;
 }
 
 function buildEncryptedIdentityAttributes(encryptedInput: EncryptedInputResult) {
