@@ -66,26 +66,29 @@ The same typed ABIs are available from `@zentity/contracts/abi`. The raw JSON AB
 
 | Network | Chain ID | Contract family | Notes |
 |---|---:|---|---|
-| Hardhat | `31337` | fhEVM mocks | Local development |
+| Hardhat | `31337` | Zama cleartext host contracts | Local development |
 | Ethereum Sepolia | `11155111` | Zama confidential | Encrypted registry and compliance checks |
 | Base Sepolia | `84532` | Mirror | Plaintext `IdentityRegistryMirror` |
 
 ## Development
 
+Development uses Node.js 26 (see `.nvmrc`), Bun, and Hardhat 3 with Zama's `@fhevm/hardhat-plugin-v3`.
+
 ```bash
 bun install
 bun run compile
-bun run test:mocked
+bun run test
 bun run typecheck
 ```
 
-To validate deployed artifacts against a running local node:
+To deploy to a local node and validate the deployment:
 
 ```bash
 bunx hardhat node
 bun run deploy:local
-bun run validate:local
 ```
+
+The node runs Zama's cleartext FHEVM host contracts, so encrypted values can be decrypted locally. `deploy:local` deploys the Ignition modules in `ignition/modules`, writes `deployments/localhost/addresses.json`, and runs the write-path validation.
 
 ## Deploy
 
@@ -108,13 +111,12 @@ bun run print:deployments sepolia --env
 ```bash
 BASE_SEPOLIA_RPC_URL=https://sepolia.base.org \
 BASE_SEPOLIA_PRIVATE_KEY=0x... \
-BASE_SEPOLIA_REGISTRAR_ADDRESS=0x... \
 bun run deploy:base-sepolia
 ```
 
 `BASE_SEPOLIA_PRIVATE_KEY` deploys the proxy and owns the initial upgrade/admin role.
-`BASE_SEPOLIA_REGISTRAR_ADDRESS` is the separate writer identity that records
-mirrored compliance levels.
+The registrar, the writer identity that records mirrored compliance levels, is set
+in `ignition/parameters/baseSepolia.json`.
 The deploy script validates the deployed proxy, bytecode, owner, registrar, and
 level constants before it exits.
 

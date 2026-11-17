@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { renderAbiFiles, rootDir } from "./abi-files";
+import { renderAbiFiles, rootDir } from "./abi-files.js";
 
 for (const file of renderAbiFiles()) {
   const target = join(rootDir, file.path);

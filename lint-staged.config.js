@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   "*.{js,ts}": ["biome check --write --no-errors-on-unmatched"],
   "*.{json,jsonc}": ["biome check --write --no-errors-on-unmatched"],
   "*.sol": ["solhint --fix"],

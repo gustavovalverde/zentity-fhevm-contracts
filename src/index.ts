@@ -5,15 +5,17 @@
  */
 
 import { type Client, type GetContractReturnType, getContract } from "viem";
-import baseSepoliaAddressesJson from "../deployments/baseSepolia/addresses.json";
-import hardhatAddressesJson from "../deployments/hardhat/addresses.json";
-import sepoliaAddressesJson from "../deployments/sepolia/addresses.json";
+import baseSepoliaAddressesJson from "../deployments/baseSepolia/addresses.json" with {
+  type: "json",
+};
+import hardhatAddressesJson from "../deployments/hardhat/addresses.json" with { type: "json" };
+import sepoliaAddressesJson from "../deployments/sepolia/addresses.json" with { type: "json" };
 import {
   complianceRulesAbi,
   compliantErc20Abi,
   identityRegistryAbi,
   identityRegistryMirrorAbi,
-} from "./abi";
+} from "./abi/index.js";
 import {
   type ChainId,
   type ConfidentialContractName,
@@ -25,7 +27,7 @@ import {
   type MirrorContractName,
   mirrorContractNames,
   type NetworkName,
-} from "./contract-names";
+} from "./contract-names.js";
 
 export {
   type ChainId,

@@ -12,7 +12,8 @@ Use `.env.example` as the template.
 
 ## Local deploy (hardhat node)
 
-1) Start a local node:
+1) Start a local node. The FHEVM plugin deploys Zama's cleartext host contracts on
+   it before it accepts requests:
 
 ```bash
 bunx hardhat node
@@ -38,7 +39,11 @@ bun run validate:local
 bun run print:deployments localhost --env
 ```
 
-Addresses are written to `deployments/localhost`.
+Ignition records the deployment in `ignition/deployments/chain-31337`, which a
+restarted node invalidates, and `bun run consolidate localhost` writes the
+addresses to `deployments/localhost/addresses.json`. Both stay out of Git.
+`deployments/hardhat/addresses.json`, the published local manifest, holds the
+addresses a fresh node gets from `bun run deploy:local`.
 
 ## Sepolia deploy
 
@@ -61,7 +66,11 @@ Print addresses:
 bun run print:deployments sepolia --env
 ```
 
-Addresses are written to `deployments/sepolia`.
+Ignition records the deployment in `ignition/deployments/chain-11155111`; commit
+it. `deploy:sepolia` then writes the published manifest,
+`deployments/sepolia/addresses.json`. The other files in `deployments/sepolia` and
+`deployments/baseSepolia` record the deployments made with hardhat-deploy before
+the move to Ignition.
 
 ## Base Sepolia mirror deploy
 
@@ -77,12 +86,12 @@ Required env values:
 ```
 BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
 BASE_SEPOLIA_PRIVATE_KEY=0x...
-BASE_SEPOLIA_REGISTRAR_ADDRESS=0x...
 ```
 
 `BASE_SEPOLIA_PRIVATE_KEY` deploys the proxy and owns the initial upgrade/admin
-role. `BASE_SEPOLIA_REGISTRAR_ADDRESS` is the separate writer identity that
-records mirrored compliance levels.
+role. The registrar, the writer identity that records mirrored compliance
+levels, is the `registrar` parameter in `ignition/parameters/baseSepolia.json`.
+Validation reads the expected registrar from the same file.
 
 Deploy:
 
@@ -127,19 +136,13 @@ bun run lint:sol
 bun run typecheck
 ```
 
-2) Mocked tests (fast, no node):
-
-```bash
-bun run test:mocked
-```
-
-3) Full Hardhat in-memory tests:
+2) In-process Hardhat tests (fast, no node):
 
 ```bash
 bun run test
 ```
 
-4) Local network tests:
+3) Local network tests:
 
 ```bash
 # terminal 1
@@ -149,24 +152,25 @@ bunx hardhat node
 bun run test:local
 ```
 
-5) Sepolia integration tests:
-
-```bash
-bun run test:sepolia
-```
-
-To validate already deployed Sepolia artifacts without running integration tests:
+4) Deployed contracts on Sepolia (read-only, no key needed):
 
 ```bash
 bun run validate:sepolia
 ```
 
-### Sepolia integration notes
+5) Sepolia integration test (sends transactions):
 
-- The **Full Integration Flow** requires at least 5 funded signers.
-- If fewer than 5 signers are available, that suite is skipped (TODO in test).
-- The **Sepolia Integration Smoke** suite runs with a single signer and
-  verifies wiring between deployed contracts.
+```bash
+CONFIDENTIAL_CHAIN_DEPLOYER_PRIVATE_KEY=0x... bun run test:sepolia
+```
+
+It deploys a fresh registry, rules contract, and token, then runs the full
+attest, grant, mint, and transfer flow through the Zama testnet relayer.
+`@fhevm/hardhat-plugin-v3` encrypts only on development networks
+([plugin note](https://github.com/zama-ai/fhevm-mocks/blob/release/0.13.x/hardhat/v3/fhevm-hardhat-template/pkg/README.md)),
+so on Sepolia the test encrypts with an `@fhevm/sdk` client instead. The
+deployer funds three temporary accounts for the run and gets their remaining
+balance back at the end.
 
 ## Sepolia faucets
 

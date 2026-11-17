@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import hre from "hardhat";
 import {
   type ContractName,
@@ -6,9 +8,17 @@ import {
   isNetworkName,
   mirrorContractNames,
   type NetworkName,
-} from "../src/contract-names";
+} from "../src/contract-names.js";
+import { manifestPath, readManifest, rootDir } from "./deployment-manifest.js";
 
-const LOCAL_NETWORKS = new Set<NetworkName>(["hardhat", "localhost"]);
+const LOCAL_NETWORKS = new Set<string>(["hardhat", "localhost"]);
+
+// Live-network validation only reads, so it connects without the deployer key.
+const connection = await hre.network.create(
+  LOCAL_NETWORKS.has(hre.globalOptions.network) ? undefined : { override: { accounts: [] } },
+);
+const { ethers } = connection;
+
 const shouldRunWriteChecks = process.env.DEPLOYMENT_VALIDATION_WRITES === "true";
 
 type DeploymentRecord = {
@@ -46,19 +56,24 @@ function requireDeploymentRecord(
 }
 
 async function requireDeployedBytecode(contractName: ContractName, address: string): Promise<void> {
-  const bytecode = await hre.ethers.provider.getCode(address);
+  const bytecode = await ethers.provider.getCode(address);
   if (bytecode === "0x") {
     throw new Error(`${contractName} has no bytecode at ${address}`);
   }
 }
 
 async function readDeploymentRecords(
+  network: NetworkName,
   expectedContractNames: readonly ContractName[],
 ): Promise<DeploymentRecords> {
+  const manifest = readManifest(network);
+  if (!manifest) {
+    throw new Error(`No deployment manifest at ${manifestPath(network)}`);
+  }
   const deployments: DeploymentRecords = {};
 
   for (const contractName of expectedContractNames) {
-    const deployment = await hre.deployments.getOrNull(contractName);
+    const deployment = manifest.contracts[contractName];
     if (!deployment) {
       continue;
     }
@@ -83,14 +98,14 @@ async function validateIdentityRegistryDeployment(
     return;
   }
 
-  const registry = await hre.ethers.getContractAt("IdentityRegistry", registryDeployment.address);
+  const registry = await ethers.getContractAt("IdentityRegistry", registryDeployment.address);
   const owner = await registry.owner();
-  if (owner === hre.ethers.ZeroAddress) {
+  if (owner === ethers.ZeroAddress) {
     throw new Error("IdentityRegistry owner is the zero address");
   }
 
   if (LOCAL_NETWORKS.has(network)) {
-    const { deployer } = await hre.getNamedAccounts();
+    const deployer = await getDeployerAddress();
     const isDeployerRegistrar = await registry.registrars(deployer);
     if (!isDeployerRegistrar) {
       throw new Error(`IdentityRegistry deployer is not an authorized registrar: ${deployer}`);
@@ -105,7 +120,7 @@ async function validateComplianceRulesDeployment(deployments: DeploymentRecords)
   }
 
   const registryDeployment = requireDeploymentRecord(deployments, "IdentityRegistry");
-  const rules = await hre.ethers.getContractAt("ComplianceRules", rulesDeployment.address);
+  const rules = await ethers.getContractAt("ComplianceRules", rulesDeployment.address);
 
   const registryAddress = await rules.identityRegistry();
   if (registryAddress !== registryDeployment.address) {
@@ -137,7 +152,7 @@ async function validateCompliantErc20Deployment(deployments: DeploymentRecords):
   }
 
   const rulesDeployment = requireDeploymentRecord(deployments, "ComplianceRules");
-  const token = await hre.ethers.getContractAt("CompliantERC20", tokenDeployment.address);
+  const token = await ethers.getContractAt("CompliantERC20", tokenDeployment.address);
 
   const [tokenName, tokenSymbol, complianceChecker] = await Promise.all([
     token.name(),
@@ -158,13 +173,23 @@ async function validateCompliantErc20Deployment(deployments: DeploymentRecords):
   }
 }
 
-function getExpectedMirrorRegistrar(network: NetworkName, deployer: string): string {
+/** The first account, which the Ignition modules deploy and own the contracts with. */
+async function getDeployerAddress(): Promise<string> {
+  const [deployer] = await ethers.getSigners();
+  return deployer.address;
+}
+
+/** Base Sepolia takes its registrar from the Ignition parameters; local deployments use the deployer. */
+async function getExpectedMirrorRegistrar(network: NetworkName): Promise<string> {
   if (network !== "baseSepolia") {
-    return deployer;
+    return getDeployerAddress();
   }
-  const registrar = process.env.BASE_SEPOLIA_REGISTRAR_ADDRESS;
+  const parameters = JSON.parse(
+    readFileSync(join(rootDir, "ignition/parameters/baseSepolia.json"), "utf8"),
+  ) as { IdentityRegistryMirror?: { registrar?: string } };
+  const registrar = parameters.IdentityRegistryMirror?.registrar;
   if (!registrar) {
-    throw new Error("BASE_SEPOLIA_REGISTRAR_ADDRESS is required to validate Base Sepolia");
+    throw new Error("ignition/parameters/baseSepolia.json does not set the mirror registrar");
   }
   return registrar;
 }
@@ -173,9 +198,9 @@ async function validateMirrorWritePath(
   mirrorAddress: string,
   registrarAddress: string,
 ): Promise<void> {
-  const mirror = await hre.ethers.getContractAt("IdentityRegistryMirror", mirrorAddress);
-  const registrar = await hre.ethers.getSigner(registrarAddress);
-  const validationUser = (await hre.ethers.getSigners())[8];
+  const mirror = await ethers.getContractAt("IdentityRegistryMirror", mirrorAddress);
+  const registrar = await ethers.getSigner(registrarAddress);
+  const validationUser = (await ethers.getSigners())[8];
 
   if (await mirror.isAttested(validationUser.address)) {
     await mirror.connect(registrar).revokeAttestation(validationUser.address);
@@ -224,9 +249,8 @@ async function validateIdentityRegistryMirrorDeployment(
     return;
   }
 
-  const mirror = await hre.ethers.getContractAt("IdentityRegistryMirror", mirrorDeployment.address);
-  const { deployer } = await hre.getNamedAccounts();
-  const expectedRegistrar = getExpectedMirrorRegistrar(network, deployer);
+  const mirror = await ethers.getContractAt("IdentityRegistryMirror", mirrorDeployment.address);
+  const expectedRegistrar = await getExpectedMirrorRegistrar(network);
 
   const [owner, minComplianceLevel, maxComplianceLevel, isExpectedRegistrar] = await Promise.all([
     mirror.owner(),
@@ -235,7 +259,7 @@ async function validateIdentityRegistryMirrorDeployment(
     mirror.registrars(expectedRegistrar),
   ]);
 
-  if (owner === hre.ethers.ZeroAddress) {
+  if (owner === ethers.ZeroAddress) {
     throw new Error("IdentityRegistryMirror owner is the zero address");
   }
   if (minComplianceLevel !== 1n) {
@@ -261,11 +285,11 @@ async function validateIdentityRegistryMirrorDeployment(
 }
 
 async function runDeploymentValidation(): Promise<void> {
-  const network = requireNetworkName(hre.network.name);
+  const network = requireNetworkName(connection.networkName);
   const expectedContractNames = getExpectedContractNames(network);
 
   console.log(`Validating ${network} deployments`);
-  const deployments = await readDeploymentRecords(expectedContractNames);
+  const deployments = await readDeploymentRecords(network, expectedContractNames);
 
   await validateIdentityRegistryDeployment(deployments, network);
   await validateComplianceRulesDeployment(deployments);

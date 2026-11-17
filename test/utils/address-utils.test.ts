@@ -9,13 +9,13 @@ import {
   getIdentityRegistryMirror,
   getIdentityRegistryMirrorAddress,
   getNetworkName,
-} from "../../src/index";
+} from "../../src/index.js";
 
 describe("address helpers", () => {
   it("returns hardhat addresses from deployments", () => {
     const addresses = getContractAddresses("hardhat");
-    expect(addresses.IdentityRegistry).to.equal("0x5FC8d32690cc91D4c39d9d3abcBD16989F875707");
-    expect(addresses.ComplianceRules).to.equal("0xa513E6E4b8f2a923D98304ec87F64353C4D5C853");
+    expect(addresses.IdentityRegistry).to.equal("0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512");
+    expect(addresses.ComplianceRules).to.equal("0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0");
   });
 
   it("returns sepolia addresses from deployments", () => {
@@ -61,7 +61,7 @@ describe("address helpers", () => {
       "0xa90723A47A14437500645Ece6049d0128A2f256D",
     );
     expect(deployments[chainIdByNetwork.hardhat]?.contracts.ComplianceRules.address).to.equal(
-      "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853",
+      "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
     );
     expect(
       deployments[chainIdByNetwork.baseSepolia]?.contracts.IdentityRegistryMirror.address,

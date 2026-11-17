@@ -1,12 +1,9 @@
-import type { HardhatUserConfig } from "hardhat/config";
-import "@fhevm/hardhat-plugin";
-import "@nomicfoundation/hardhat-chai-matchers";
-import "@nomicfoundation/hardhat-toolbox";
-import "hardhat-deploy";
-import "solidity-docgen";
 import fs from "node:fs";
 import path from "node:path";
+import fhevmPlugin from "@fhevm/hardhat-plugin-v3";
+import hardhatToolboxMochaEthers from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
 import * as dotenv from "dotenv";
+import { configVariable, defineConfig } from "hardhat/config";
 
 const nodeEnv = process.env.NODE_ENV;
 const envFiles = [
@@ -29,74 +26,65 @@ for (const envFile of envFiles) {
   }
 }
 
-const MNEMONIC =
-  process.env.MNEMONIC || "test test test test test test test test test test test junk";
-const CONFIDENTIAL_CHAIN_DEPLOYER_PRIVATE_KEY =
-  process.env.CONFIDENTIAL_CHAIN_DEPLOYER_PRIVATE_KEY ??
-  "0x0000000000000000000000000000000000000000000000000000000000000001";
 const CONFIDENTIAL_CHAIN_RPC_URL =
   process.env.CONFIDENTIAL_CHAIN_RPC_URL || "https://ethereum-sepolia-rpc.publicnode.com";
 const BASE_SEPOLIA_RPC_URL = process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org";
-const BASE_SEPOLIA_PRIVATE_KEY =
-  process.env.BASE_SEPOLIA_PRIVATE_KEY ??
-  "0x0000000000000000000000000000000000000000000000000000000000000001";
 const LOCAL_RPC_URL =
   process.env.LOCAL_RPC_URL || process.env.NEXT_PUBLIC_LOCAL_RPC_URL || "http://127.0.0.1:8545";
 
-const config: HardhatUserConfig = {
-  namedAccounts: {
-    deployer: 0,
-  },
-  solidity: {
-    version: "0.8.27",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200,
-      },
-      evmVersion: "cancun",
-      outputSelection: {
-        "*": {
-          "*": ["storageLayout", "devdoc", "userdoc"],
-        },
+// Tests (default profile) and Ignition deployments (production profile) compile with the same
+// settings. A production profile left implicit would drop these settings.
+const solidityCompiler = {
+  version: "0.8.38",
+  settings: {
+    optimizer: {
+      enabled: true,
+      runs: 200,
+    },
+    // FHEVM requires at least the Cancun EVM.
+    evmVersion: "cancun",
+    outputSelection: {
+      "*": {
+        "*": ["storageLayout", "devdoc", "userdoc"],
       },
     },
-  },
-  networks: {
-    hardhat: {
-      accounts: {
-        mnemonic: MNEMONIC,
-      },
-      chainId: 31337,
-    },
-    localhost: {
-      url: LOCAL_RPC_URL,
-    },
-    sepolia: {
-      url: CONFIDENTIAL_CHAIN_RPC_URL,
-      accounts: [CONFIDENTIAL_CHAIN_DEPLOYER_PRIVATE_KEY],
-      chainId: 11155111,
-    },
-    baseSepolia: {
-      url: BASE_SEPOLIA_RPC_URL,
-      accounts: [BASE_SEPOLIA_PRIVATE_KEY],
-      chainId: 84532,
-    },
-  },
-  paths: {
-    sources: "./contracts",
-    tests: "./test",
-    cache: "./cache",
-    artifacts: "./artifacts",
-  },
-  typechain: {
-    outDir: "typechain-types",
-    target: "ethers-v6",
-  },
-  docgen: {
-    outputDir: "docs",
-    pages: "files",
   },
 };
 
-export default config;
+export default defineConfig({
+  plugins: [hardhatToolboxMochaEthers, fhevmPlugin],
+  solidity: {
+    profiles: {
+      default: solidityCompiler,
+      production: solidityCompiler,
+    },
+    npmFilesToBuild: ["@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol"],
+  },
+  networks: {
+    default: {
+      type: "edr-simulated",
+      chainId: 31337,
+      ...(process.env.MNEMONIC ? { accounts: { mnemonic: process.env.MNEMONIC } } : {}),
+    },
+    localhost: {
+      type: "http",
+      chainId: 31337,
+      url: LOCAL_RPC_URL,
+    },
+    sepolia: {
+      type: "http",
+      chainId: 11155111,
+      url: CONFIDENTIAL_CHAIN_RPC_URL,
+      accounts: [configVariable("CONFIDENTIAL_CHAIN_DEPLOYER_PRIVATE_KEY")],
+    },
+    baseSepolia: {
+      type: "http",
+      chainId: 84532,
+      url: BASE_SEPOLIA_RPC_URL,
+      accounts: [configVariable("BASE_SEPOLIA_PRIVATE_KEY")],
+    },
+  },
+  typechain: {
+    outDir: "typechain-types",
+  },
+});

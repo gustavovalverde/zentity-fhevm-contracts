@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { type ContractName, contractNames } from "../src/contract-names";
+import { type ContractName, contractNames } from "../src/contract-names.js";
 
-export const rootDir = join(__dirname, "..");
+export const rootDir = join(import.meta.dirname, "..");
 
 const artifactsDir = join(rootDir, "artifacts/contracts");
 
@@ -54,7 +54,7 @@ export function renderAbiFiles(): AbiFile[] {
   }
 
   const reexports = contractNames
-    .map((contract) => `export { ${abiExportNames[contract]} } from "./${contract}";`)
+    .map((contract) => `export { ${abiExportNames[contract]} } from "./${contract}.js";`)
     .join("\n");
   files.push({ path: "src/abi/index.ts", contents: `${generatedHeader}\n${reexports}\n` });
 
