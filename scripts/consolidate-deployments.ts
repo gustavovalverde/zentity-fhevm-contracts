@@ -1,95 +1,68 @@
 /**
- * Consolidate hardhat-deploy JSON files into a single addresses.json per network.
- *
- * Reads `deployments/{network}/*.json` (hardhat-deploy format),
- * extracts `.address` and `.transactionHash`, and writes `addresses.json`.
+ * Writes the published manifest, `deployments/<network>/addresses.json`, from the Ignition
+ * deployment recorded for the network's chain in `ignition/deployments/chain-<chainId>`.
  *
  * Usage: bun scripts/consolidate-deployments.ts [network...]
- *        Defaults to all directories under deployments/ if no args given.
+ *        Defaults to every network. A network without a recorded Ignition deployment keeps its
+ *        manifest. So does `hardhat`: in-process deployments are not recorded, and its manifest
+ *        holds the addresses a fresh `hardhat node` gets from `bun run deploy:local`.
  */
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
+import { status } from "@nomicfoundation/ignition-core";
 import {
   chainIdByNetwork,
   contractNames,
   getRequiredContracts,
   isNetworkName,
-} from "../src/contract-names";
+  type NetworkName,
+} from "../src/contract-names.js";
+import {
+  type DeploymentManifest,
+  ignitionDeploymentDir,
+  ignitionFutureIds,
+  manifestPath,
+  readManifest,
+  writeManifest,
+} from "./deployment-manifest.js";
 
-const DEPLOYMENTS_DIR = resolve(__dirname, "../deployments");
-
-type ContractEntry = { address: string; txHash?: string };
-
-function readJsonIfExists<T>(filePath: string): T | null {
-  try {
-    return JSON.parse(readFileSync(filePath, "utf-8")) as T;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw error;
-  }
-}
-
-function consolidateNetwork(network: string): void {
-  if (!isNetworkName(network)) {
-    console.error(`  Unknown network "${network}" — add it to chainIdByNetwork`);
-    process.exit(1);
-  }
-
-  const networkDir = join(DEPLOYMENTS_DIR, network);
-  const contracts: Record<string, ContractEntry> = {};
-  let foundAny = false;
-
-  for (const name of contractNames) {
-    const raw = readJsonIfExists<{ address: string; transactionHash?: string }>(
-      join(networkDir, `${name}.json`),
-    );
-    if (!raw) {
-      console.warn(`  Missing ${name}.json — skipping`);
-      continue;
+async function consolidateNetwork(network: NetworkName): Promise<void> {
+  const deploymentDir = ignitionDeploymentDir(network);
+  if (network === "hardhat" || !existsSync(deploymentDir)) {
+    if (readManifest(network)) {
+      console.log(`  ✓ ${manifestPath(network)} (kept, no Ignition deployment to read)`);
     }
-    foundAny = true;
-    contracts[name] = {
-      address: raw.address,
-      ...(raw.transactionHash ? { txHash: raw.transactionHash } : {}),
-    };
-  }
-
-  const addressesPath = join(networkDir, "addresses.json");
-  if (!foundAny && readJsonIfExists(addressesPath)) {
-    console.log(`  ✓ ${addressesPath} (already exists)`);
     return;
   }
 
-  const missing = getRequiredContracts(network).filter((n) => !contracts[n]);
-  if (missing.length > 0) {
-    console.error(`  Missing contracts for ${network}: ${missing.join(", ")}`);
-    process.exit(1);
+  const deployment = await status(deploymentDir);
+  const contracts: DeploymentManifest["contracts"] = {};
+  for (const name of contractNames) {
+    const deployed = deployment.contracts[ignitionFutureIds[name]];
+    if (deployed) {
+      contracts[name] = { address: deployed.address };
+    }
   }
 
-  const chainId = chainIdByNetwork[network];
+  const missing = getRequiredContracts(network).filter((name) => !contracts[name]);
+  if (missing.length > 0) {
+    throw new Error(`Missing contracts for ${network} in ${deploymentDir}: ${missing.join(", ")}`);
+  }
 
-  const output = {
-    network,
-    chainId,
-    contracts,
-  };
-
-  const outPath = join(networkDir, "addresses.json");
-  writeFileSync(outPath, `${JSON.stringify(output, null, 2)}\n`);
-  console.log(`  ✓ ${outPath}`);
+  mkdirSync(dirname(manifestPath(network)), { recursive: true });
+  const written = writeManifest({ network, chainId: chainIdByNetwork[network], contracts });
+  console.log(`  ✓ ${written}`);
 }
 
-// Determine networks: CLI args or auto-discover
 const args = process.argv.slice(2);
-const networks =
-  args.length > 0
-    ? args
-    : readdirSync(DEPLOYMENTS_DIR, { withFileTypes: true })
-        .filter((d) => d.isDirectory())
-        .map((d) => d.name)
-        .filter((name) => name !== "solcInputs");
+const unknown = args.filter((name) => !isNetworkName(name));
+if (unknown.length > 0) {
+  console.error(`Unknown network(s): ${unknown.join(", ")}. Add them to chainIdByNetwork.`);
+  process.exit(1);
+}
+const networks = (args.length > 0 ? args : Object.keys(chainIdByNetwork)) as NetworkName[];
 
 console.log(`Consolidating deployments for: ${networks.join(", ")}`);
 for (const network of networks) {
-  consolidateNetwork(network);
+  await consolidateNetwork(network);
 }

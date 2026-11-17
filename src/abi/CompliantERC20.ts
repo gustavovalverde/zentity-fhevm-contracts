@@ -52,6 +52,22 @@ export const compliantErc20Abi = [
     "type": "error"
   },
   {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "handle",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      }
+    ],
+    "name": "SenderNotAllowedToUseHandle",
+    "type": "error"
+  },
+  {
     "inputs": [],
     "name": "TotalSupplyOverflow",
     "type": "error"

@@ -19,10 +19,11 @@ changesets consistent.
      `bun run test` fails when they no longer match the compiled contracts.
 
 3) **Run tests**
-   - Local mocked tests:
-     - `bun run test:mocked`
-   - If your change affects deployments or on-chain behavior:
-     - `bun run deploy:mocked`
+   - In-process tests:
+     - `bun run test`
+   - If your change affects deployments or on-chain behavior, deploy to a
+     local node (`bunx hardhat node` in another terminal):
+     - `bun run deploy:local`
 
 4) **Run lint + typecheck + build**
    - `bun run lint`
@@ -30,14 +31,15 @@ changesets consistent.
    - `bun run build`
 
 5) **Sepolia deployment (when required)**
-   - Only required when you intend to update on-chain addresses in
-     `deployments/sepolia/*.json`.
+   - Only required when you intend to update the on-chain addresses in
+     `deployments/sepolia/addresses.json`.
    - Ensure `.env` / `.env.local` are set (`CONFIDENTIAL_CHAIN_RPC_URL`, `CONFIDENTIAL_CHAIN_DEPLOYER_PRIVATE_KEY`, etc.).
    - Run:
      - `bun run deploy:sepolia`
-     - `bun run test:sepolia`
-   - Commit the updated `deployments/sepolia/*.json` files if a new deployment
-     is intended for release.
+     - `bun run validate:sepolia`
+   - Commit `ignition/deployments/chain-11155111` and the updated
+     `deployments/sepolia/addresses.json` if a new deployment is intended for
+     release.
 
 ## Commit guidelines
 
@@ -47,5 +49,4 @@ changesets consistent.
 
 ## Notes
 
-- Hardhat emits warnings on unsupported Node versions. This does not block local
-  workflows but should be resolved in CI toolchain updates.
+- Use the Node.js version in `.nvmrc`; CI uses the same file.

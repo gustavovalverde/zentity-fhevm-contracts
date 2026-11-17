@@ -6,7 +6,6 @@ dist/
 cache/
 artifacts/
 typechain-types/
-fhevmTemp/
 
 # Environment
 .env
@@ -24,9 +23,10 @@ fhevmTemp/
 coverage/
 coverage.json
 
-# Deployments (keep JSONs for published SDK, ignore solcInputs)
+# Deployments (keep the published manifests and live-network records; local runs stay out)
 deployments/**/solcInputs/
 deployments/localhost/
+ignition/deployments/chain-31337/
 
 # Husky internal
 .husky/_

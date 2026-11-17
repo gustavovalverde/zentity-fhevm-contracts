@@ -1,40 +1,42 @@
 import { expect } from "chai";
-import hre from "hardhat";
-import { deployUupsProxy } from "../utils/deploy-uups-proxy";
+import { network } from "hardhat";
+import { deployUupsProxy } from "../utils/deploy-uups-proxy.js";
+
+const { ethers } = await network.create();
 
 describe("Ownership transfers", () => {
   async function deployIdentityRegistryProxy() {
-    const [owner] = await hre.ethers.getSigners();
-    const proxyAddress = await deployUupsProxy("IdentityRegistry", [owner.address]);
-    return hre.ethers.getContractAt("IdentityRegistry", proxyAddress);
+    const [owner] = await ethers.getSigners();
+    const proxyAddress = await deployUupsProxy(ethers, "IdentityRegistry", [owner.address]);
+    return ethers.getContractAt("IdentityRegistry", proxyAddress);
   }
 
   async function deployComplianceRules(registryAddress: string) {
-    const factory = await hre.ethers.getContractFactory("ComplianceRules");
+    const factory = await ethers.getContractFactory("ComplianceRules");
     const contract = await factory.deploy(registryAddress, 1);
     await contract.waitForDeployment();
     return contract;
   }
 
   async function deployCompliantERC20(checkerAddress: string) {
-    const factory = await hre.ethers.getContractFactory("CompliantERC20");
+    const factory = await ethers.getContractFactory("CompliantERC20");
     const contract = await factory.deploy("Zentity Token", "ZTY", checkerAddress);
     await contract.waitForDeployment();
     return contract;
   }
 
   async function deployIdentityRegistryMirrorProxy() {
-    const [owner] = await hre.ethers.getSigners();
-    const proxyAddress = await deployUupsProxy("IdentityRegistryMirror", [
+    const [owner] = await ethers.getSigners();
+    const proxyAddress = await deployUupsProxy(ethers, "IdentityRegistryMirror", [
       owner.address,
       owner.address,
     ]);
-    return hre.ethers.getContractAt("IdentityRegistryMirror", proxyAddress);
+    return ethers.getContractAt("IdentityRegistryMirror", proxyAddress);
   }
 
   it("supports two-step ownership in IdentityRegistry (via proxy)", async () => {
     const registry = await deployIdentityRegistryProxy();
-    const [owner, nextOwner, other] = await hre.ethers.getSigners();
+    const [owner, nextOwner, other] = await ethers.getSigners();
 
     expect(await registry.owner()).to.equal(owner.address);
 
@@ -57,7 +59,7 @@ describe("Ownership transfers", () => {
   it("supports two-step ownership in ComplianceRules", async () => {
     const registry = await deployIdentityRegistryProxy();
     const compliance = await deployComplianceRules(await registry.getAddress());
-    const [owner, nextOwner, other] = await hre.ethers.getSigners();
+    const [owner, nextOwner, other] = await ethers.getSigners();
 
     expect(await compliance.owner()).to.equal(owner.address);
 
@@ -74,7 +76,7 @@ describe("Ownership transfers", () => {
     const registry = await deployIdentityRegistryProxy();
     const compliance = await deployComplianceRules(await registry.getAddress());
     const token = await deployCompliantERC20(await compliance.getAddress());
-    const [owner, nextOwner, other] = await hre.ethers.getSigners();
+    const [owner, nextOwner, other] = await ethers.getSigners();
 
     expect(await token.owner()).to.equal(owner.address);
 
@@ -89,7 +91,7 @@ describe("Ownership transfers", () => {
 
   it("supports two-step ownership in IdentityRegistryMirror (via proxy)", async () => {
     const mirror = await deployIdentityRegistryMirrorProxy();
-    const [owner, nextOwner, other] = await hre.ethers.getSigners();
+    const [owner, nextOwner, other] = await ethers.getSigners();
 
     expect(await mirror.owner()).to.equal(owner.address);
 

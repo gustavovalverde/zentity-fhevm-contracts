@@ -1,21 +1,23 @@
 import { expect } from "chai";
-import hre from "hardhat";
-import { deployUupsProxy } from "../utils/deploy-uups-proxy";
+import { network } from "hardhat";
+import { deployUupsProxy } from "../utils/deploy-uups-proxy.js";
+
+const { ethers } = await network.create();
 
 async function deployMirrorProxy() {
-  const [owner, registrar] = await hre.ethers.getSigners();
-  const proxyAddress = await deployUupsProxy("IdentityRegistryMirror", [
+  const [owner, registrar] = await ethers.getSigners();
+  const proxyAddress = await deployUupsProxy(ethers, "IdentityRegistryMirror", [
     owner.address,
     registrar.address,
   ]);
-  const mirror = await hre.ethers.getContractAt("IdentityRegistryMirror", proxyAddress);
+  const mirror = await ethers.getContractAt("IdentityRegistryMirror", proxyAddress);
   return { mirror, owner, registrar };
 }
 
 describe("IdentityRegistryMirror", () => {
   it("records level-aware compliance and supports threshold reads", async () => {
     const { mirror, registrar } = await deployMirrorProxy();
-    const [, , user] = await hre.ethers.getSigners();
+    const [, , user] = await ethers.getSigners();
 
     await expect(mirror.connect(registrar).recordCompliance(user.address, 3))
       .to.emit(mirror, "IdentityAttested")
@@ -34,7 +36,7 @@ describe("IdentityRegistryMirror", () => {
 
   it("updates levels without changing the attestation id", async () => {
     const { mirror, registrar } = await deployMirrorProxy();
-    const [, , user] = await hre.ethers.getSigners();
+    const [, , user] = await ethers.getSigners();
 
     await mirror.connect(registrar).recordCompliance(user.address, 2);
     const mirrorAttestationId = await mirror.currentMirrorAttestationId(user.address);
@@ -50,7 +52,7 @@ describe("IdentityRegistryMirror", () => {
 
   it("revokes mirrored attestations idempotently", async () => {
     const { mirror, registrar } = await deployMirrorProxy();
-    const [, , user] = await hre.ethers.getSigners();
+    const [, , user] = await ethers.getSigners();
 
     await mirror.connect(registrar).recordCompliance(user.address, 2);
 
@@ -72,7 +74,7 @@ describe("IdentityRegistryMirror", () => {
 
   it("restricts writes to registrars and owner-managed registrar updates", async () => {
     const { mirror, owner, registrar } = await deployMirrorProxy();
-    const [, , user, other] = await hre.ethers.getSigners();
+    const [, , user, other] = await ethers.getSigners();
 
     await expect(
       mirror.connect(other).recordCompliance(user.address, 2),
@@ -92,7 +94,7 @@ describe("IdentityRegistryMirror", () => {
 
   it("rejects unsupported compliance levels and zero addresses", async () => {
     const { mirror, registrar } = await deployMirrorProxy();
-    const [, , user] = await hre.ethers.getSigners();
+    const [, , user] = await ethers.getSigners();
 
     await expect(
       mirror.connect(registrar).recordCompliance(user.address, 0),
@@ -103,11 +105,11 @@ describe("IdentityRegistryMirror", () => {
     ).to.be.revertedWithCustomError(mirror, "InvalidComplianceLevel");
 
     await expect(
-      mirror.connect(registrar).recordCompliance(hre.ethers.ZeroAddress, 2),
+      mirror.connect(registrar).recordCompliance(ethers.ZeroAddress, 2),
     ).to.be.revertedWithCustomError(mirror, "ZeroAddress");
 
     await expect(
-      mirror.connect(registrar).revokeAttestation(hre.ethers.ZeroAddress),
+      mirror.connect(registrar).revokeAttestation(ethers.ZeroAddress),
     ).to.be.revertedWithCustomError(mirror, "ZeroAddress");
   });
 });

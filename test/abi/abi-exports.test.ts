@@ -11,7 +11,7 @@ import {
   zeroAddress,
 } from "viem";
 
-import { renderAbiFiles, rootDir } from "../../scripts/abi-files";
+import { renderAbiFiles, rootDir } from "../../scripts/abi-files.js";
 import {
   complianceLevels,
   type getAbi,
@@ -19,7 +19,7 @@ import {
   getIdentityRegistryMirror,
   identityRegistryAbi,
   identityRegistryMirrorAbi,
-} from "../../src/index";
+} from "../../src/index.js";
 
 // Compile-time assertions, enforced by `bun run typecheck`.
 type Equal<A, B> =
