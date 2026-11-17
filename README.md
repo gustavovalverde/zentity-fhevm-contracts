@@ -66,7 +66,7 @@ The same typed ABIs are available from `@zentity/contracts/abi`. The raw JSON AB
 
 | Network | Chain ID | Contract family | Notes |
 |---|---:|---|---|
-| Hardhat | `31337` | fhEVM mocks | Local development |
+| Hardhat | `31337` | Zama cleartext host contracts | Local development |
 | Ethereum Sepolia | `11155111` | Zama confidential | Encrypted registry and compliance checks |
 | Base Sepolia | `84532` | Mirror | Plaintext `IdentityRegistryMirror` |
 
